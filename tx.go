@@ -1,7 +1,7 @@
 package zanolib
 
 type Transaction struct {
-	Version uint64     `epee:"varint"` // varint, ==2
+	Version Varint     // varint, ==2
 	Vin     []*Payload // txin_v = boost::variant<txin_gen[0], txin_to_key[1], txin_multisig[2], txin_htlc[34], txin_zc_input[37]>
 	Extra   []*Payload // extra_v
 	Vout    []*Payload // tx_out_v = boost::variant<tx_out_bare[36], tx_out_zarcanum[38]>
