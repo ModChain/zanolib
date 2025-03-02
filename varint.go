@@ -5,6 +5,22 @@ import (
 	"io"
 )
 
+type Varint uint64
+
+func (v Varint) Bytes() []byte {
+	return VarintAppendUint64(nil, uint64(v))
+}
+
+func (v *Varint) ReadFrom(r io.Reader) (int64, error) {
+	rc := rc(r)
+	n, err := VarintReadUint64(rc)
+	if err != nil {
+		return rc.error(err)
+	}
+	*v = Varint(n)
+	return rc.ret()
+}
+
 func VarintPackedSize(v uint64) int {
 	switch {
 	case v <= 0x7f:

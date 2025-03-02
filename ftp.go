@@ -2,6 +2,8 @@ package zanolib
 
 import (
 	"bytes"
+	"errors"
+	"io"
 )
 
 type FinalizeTxParam struct {
@@ -14,14 +16,14 @@ type FinalizeTxParam struct {
 	Flags                uint8
 	MultisigId           [32]byte    // crypto::hash
 	Sources              []*TxSource // currency::tx_source_entry
-	SelectedTransfers    []uint64
-	PreparedDestinations []*TxDest // currency::tx_destination_entry
+	SelectedTransfers    []Varint    // not sure why, but this is encoded as "01 00" in the bytestream
+	PreparedDestinations []*TxDest   // currency::tx_destination_entry
 	ExpirationTime       uint64
 	SpendPubKey          [32]byte // only for validations
 	TxVersion            uint64
 	//TxHardforkId         uint64 // size_t; IN NEW VERSION FIXME
 	ModeSeparateFee uint64
-	GenContext      *GenContext // if flags & TX_FLAG_SIGNATURE_MODE_SEPARATE
+	//GenContext      *GenContext // if flags & TX_FLAG_SIGNATURE_MODE_SEPARATE
 }
 
 type KeyImageIndex struct {
@@ -46,7 +48,10 @@ func ParseFTP(buf, viewSecretKey []byte) (*FinalizeTxParam, error) {
 	if err != nil {
 		return nil, err
 	}
-	//final := must(io.ReadAll(r))
-	//log.Printf("remaining data:\n%s", hex.Dump(final))
+	final := must(io.ReadAll(r))
+	if len(final) != 0 {
+		//log.Printf("remaining data:\n%s", hex.Dump(final))
+		return nil, errors.New("trailing data")
+	}
 	return res, nil
 }
