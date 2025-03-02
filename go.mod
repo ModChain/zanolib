@@ -8,4 +8,9 @@ require (
 	golang.org/x/crypto v0.35.0
 )
 
-require golang.org/x/sys v0.30.0 // indirect
+require (
+	github.com/KarpelesLab/pjson v0.1.7 // indirect
+	github.com/KarpelesLab/typutil v0.2.26 // indirect
+	github.com/ModChain/ethrpc v0.2.6 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+)

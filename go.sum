@@ -1,7 +1,13 @@
+github.com/KarpelesLab/pjson v0.1.7 h1:j0EItKHyf/dXPZJXbMAS1Ioxlq1LTNH9YmPkmX/JN3s=
+github.com/KarpelesLab/pjson v0.1.7/go.mod h1:gb4uSTld7I2kO2WvLdat1mN1brsS1hzSR+dWw1hL3iU=
+github.com/KarpelesLab/typutil v0.2.26 h1:SPSYb8ntPZ+zlSxiU9SNAjRTglHiQRX6hQ38Kcq/m/0=
+github.com/KarpelesLab/typutil v0.2.26/go.mod h1:AAFzwyeM5datR6N5pGy8VrihZacfVS4ktC+AKp3VIrQ=
 github.com/ModChain/base58 v1.1.0 h1:oatOQDbV2lrP14TtXDQ0D+VqFl+T8d0VsI1RrQ/UO0k=
 github.com/ModChain/base58 v1.1.0/go.mod h1:/FvdI5MHtcByk2Hn/3F1TuaqLjZ3R9MvDS1Z7fd6Qyc=
 github.com/ModChain/edwards25519 v1.0.1 h1:BacxhRtCEu+pLWZhN3lJmFmXZkuoxEaCP7ICMP7YC70=
 github.com/ModChain/edwards25519 v1.0.1/go.mod h1:kjiZ1iVWnsHVMHeIgWFu26ik6/jPlE+c9MrfO5wbLm4=
+github.com/ModChain/ethrpc v0.2.6 h1:kBwqYCv/W1CFUS/YTB36S7PnfnBWBOn+FNOnm37SnpA=
+github.com/ModChain/ethrpc v0.2.6/go.mod h1:egUGmkgnfDmMsxd8bfgSwpTyrLORPu5VNRWuMO/HEzE=
 golang.org/x/crypto v0.35.0 h1:b15kiHdrGCHrP6LvwaQ3c03kgNhhiMgvlhxHQhmg2Xs=
 golang.org/x/crypto v0.35.0/go.mod h1:dy7dXNW32cAb/6/PRuTNsix8T+vJAqvuIy5Bli/x0YQ=
 golang.org/x/sys v0.30.0 h1:QjkSwP/36a20jFYWkSue1YwXzLmsV5Gfq7Eiy72C1uc=
