@@ -68,7 +68,7 @@ func ParseAddress(addr string) (*Address, error) {
 }
 
 func (addr *Address) Debug() string {
-	return fmt.Sprintf("type=%s spendKey=%x viewKey=%x paymentId=%x", addr.Type, addr.SpendKey, addr.ViewKey, addr.PaymentId)
+	return fmt.Sprintf("type=%s spendKey=%x viewKey=%x flags=%x paymentId=%x", addr.Type, addr.SpendKey, addr.ViewKey, addr.Flags, addr.PaymentId)
 }
 
 // String returns the address encoded as a standard Zano address
