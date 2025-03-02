@@ -41,8 +41,7 @@ func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {
 func (res *FinalizedTx) ReadFrom(rx io.Reader) (int64, error) {
 	rc := rc(rx)
 
-	res.Tx = &Transaction{}
-	_, err := res.Tx.ReadFrom(rc)
+	err := Deserialize(rc, &res.Tx)
 	if err != nil {
 		return rc.error(err)
 	}
