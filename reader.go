@@ -2,7 +2,6 @@ package zanolib
 
 import (
 	"bufio"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"path"
@@ -48,11 +47,6 @@ func (rc *readCounter) error(err error) (int64, error) {
 	return rc.cnt, fmt.Errorf("in %s: %w", rc.ctx, err)
 }
 
-func (rc *readCounter) into(o io.ReaderFrom) error {
-	_, err := o.ReadFrom(rc)
-	return err
-}
-
 func (rc *readCounter) readFull(buf []byte) error {
 	_, err := io.ReadFull(rc, buf)
 	return err
@@ -90,42 +84,6 @@ func (rc *readCounter) readVec32() ([][32]byte, error) {
 		}
 	}
 	return res, nil
-}
-
-func (rc *readCounter) magic(vs ...any) (int64, error) {
-	var err error
-	for n, v := range vs {
-		switch o := v.(type) {
-		case *bool, *uint64:
-			err = binary.Read(rc, binary.LittleEndian, o)
-			if err != nil {
-				return rc.error(fmt.Errorf("in argument %d: %w", n, err))
-			}
-		case *[32]byte:
-			err = rc.readFull((*o)[:])
-			if err != nil {
-				return rc.error(fmt.Errorf("in argument %d: %w", n, err))
-			}
-		case *[][32]byte:
-			*o, err = rc.readVec32()
-			if err != nil {
-				return rc.error(fmt.Errorf("in argument %d: %w", n, err))
-			}
-		case *[]*Payload:
-			*o, err = readPayloads(rc)
-			if err != nil {
-				return rc.error(fmt.Errorf("in argument %d: %w", n, err))
-			}
-		case io.ReaderFrom:
-			err = rc.into(o)
-			if err != nil {
-				return rc.error(fmt.Errorf("in argument %d: %w", n, err))
-			}
-		default:
-			return rc.error(fmt.Errorf("unsupported type for reader magic: %T", v))
-		}
-	}
-	return rc.ret()
 }
 
 func rc(r io.Reader) *readCounter {

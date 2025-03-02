@@ -4,17 +4,17 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"log"
 	"reflect"
 )
 
-var readerFromType = reflect.TypeOf((*io.ReaderFrom)(nil)).Elem()
+var (
+	readerFromType = reflect.TypeOf((*io.ReaderFrom)(nil)).Elem()
+	byteArrayType  = reflect.TypeFor[[]byte]()
+)
 
 // Deserialize implements epee deserializer (kind of)
 func Deserialize(r ByteAndReadReader, target any) error {
 	var err error
-
-	log.Printf("deserialize = %T", target)
 
 	obj := reflect.ValueOf(target)
 	t := obj.Type()
@@ -29,6 +29,9 @@ func Deserialize(r ByteAndReadReader, target any) error {
 		}
 		obj = obj.Elem()
 		t = obj.Type()
+	}
+	if t == byteArrayType {
+		return subDeserialize(r, obj.Addr().Interface(), "!")
 	}
 	if t.Kind() == reflect.Slice {
 		ln, err := VarintReadUint64(r)
@@ -67,7 +70,7 @@ func Deserialize(r ByteAndReadReader, target any) error {
 func subDeserialize(r ByteAndReadReader, o any, tag string) error {
 	var err error
 	switch v := o.(type) {
-	case *uint16:
+	case *bool, *uint8, *uint16:
 		err = binary.Read(r, binary.LittleEndian, v)
 	case *uint64:
 		if tag == "varint" {
@@ -77,6 +80,35 @@ func subDeserialize(r ByteAndReadReader, o any, tag string) error {
 		}
 	case *[32]byte:
 		_, err = io.ReadFull(r, v[:])
+	case *string:
+		ln, err := VarintReadUint64(r)
+		if err != nil {
+			return err
+		}
+		if ln > 4096 {
+			return fmt.Errorf("string length too long: %d", ln)
+		}
+		buf := make([]byte, ln)
+		_, err = io.ReadFull(r, buf)
+		if err != nil {
+			return err
+		}
+		*v = string(buf)
+		return nil
+	case *[]byte:
+		ln, err := VarintReadUint64(r)
+		if err != nil {
+			return err
+		}
+		if ln > 4096 {
+			return fmt.Errorf("string length too long: %d", ln)
+		}
+		*v = make([]byte, ln)
+		_, err = io.ReadFull(r, *v)
+		if err != nil {
+			return err
+		}
+		return nil
 	default:
 		if tag == "!" {
 			return fmt.Errorf("unsupported deserialize type %T", o)

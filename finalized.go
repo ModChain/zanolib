@@ -2,7 +2,6 @@ package zanolib
 
 import (
 	"bytes"
-	"io"
 )
 
 type FinalizedTx struct {
@@ -27,8 +26,8 @@ func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {
 	}
 	//log.Printf("decoded buffer:\n%s", hex.Dump(buf))
 	r := bytes.NewReader(buf)
-	res := &FinalizedTx{}
-	_, err = res.ReadFrom(r)
+	res := new(FinalizedTx)
+	err = Deserialize(r, res)
 	if err != nil {
 		return nil, err
 	}
@@ -36,39 +35,4 @@ func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {
 	//final := must(io.ReadAll(r))
 	//log.Printf("remaining data:\n%s", hex.Dump(final))
 	return res, nil
-}
-
-func (res *FinalizedTx) ReadFrom(rx io.Reader) (int64, error) {
-	rc := rc(rx)
-
-	err := Deserialize(rc, &res.Tx)
-	if err != nil {
-		return rc.error(err)
-	}
-	_, err = io.ReadFull(rc, res.TxId[:])
-	if err != nil {
-		return rc.error(err)
-	}
-	_, err = io.ReadFull(rc, res.OneTimeKey[:])
-	if err != nil {
-		return rc.error(err)
-	}
-	res.FTP = new(FinalizeTxParam)
-	err = rc.into(res.FTP)
-	if err != nil {
-		return rc.error(err)
-	}
-
-	buf, err := rc.readVarBytes()
-	if err != nil {
-		return rc.error(err)
-	}
-	res.HtlcOrigin = string(buf)
-
-	res.OutsKeyImages, err = arrayOf[KeyImageIndex](rc)
-	if err != nil {
-		return rc.error(err)
-	}
-
-	return rc.magic(&res.Derivation, &res.WasNotPrepared)
 }
