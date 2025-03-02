@@ -1,6 +1,7 @@
 package zanolib
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -8,6 +9,46 @@ import (
 type Payload struct {
 	Tag   uint8
 	Value any // any type stored as a boost::variant
+}
+
+type tagDefinition struct {
+	read func(p *Payload, rc *readCounter) (int64, error)
+	name string
+}
+
+var variantTags = map[uint8]*tagDefinition{
+	0:  {payloadOf[*TxInGen], "gen"},
+	11: {payloadOf[[]byte], "derivation_hint"},
+	22: {payloadOf[Value256], "pub_key"},
+	23: {payloadOf[uint16], "etc_tx_flags16"},
+	24: {payloadOf[uint16], "derive_xor"},
+	25: {payloadOf[*RefById], "ref_by_id"},
+	26: {payloadOf[uint64], "uint64_t"},
+	28: {payloadOf[uint32], "uint32_t"},
+	37: {payloadOf[*TxInZcInput], "txin_zc_input"},
+	38: {payloadOf[*TxOutZarcanium], "tx_out_zarcanum"},
+	39: {payloadOf[*ZarcaniumTxDataV1], "zarcanum_tx_data_v1"},
+	43: {payloadOf[*ZCSig], "ZC_sig"},
+	46: {payloadOf[*ZCAssetSurjectionProof], "zc_asset_surjection_proof"},
+	47: {payloadOf[*ZCOutsRangeProof], "zc_outs_range_proof"},
+	48: {payloadOf[*ZCBalanceProof], "zc_balance_proof"},
+}
+
+type marshalledPayload struct {
+	Type  string `json:"type"`
+	Value any    `json:"value"`
+}
+
+func (p *Payload) MarshalJSON() ([]byte, error) {
+	obj := &marshalledPayload{
+		Value: p.Value,
+	}
+	if v, ok := variantTags[p.Tag]; ok {
+		obj.Type = v.name
+	} else {
+		obj.Type = fmt.Sprintf("unknown#%d", p.Tag)
+	}
+	return json.Marshal(obj)
 }
 
 func readPayloads(rc ByteAndReadReader) ([]*Payload, error) {
@@ -23,44 +64,12 @@ func (p *Payload) ReadFrom(r io.Reader) (int64, error) {
 
 	p.Tag = b
 
-	switch b {
-	case 0: // txin_gen
-		return payloadOf[*TxInGen](p, rc)
-	case 11:
-		// tx_derivation_hint
-		buf, err := rc.readVarBytes()
-		if err != nil {
-			return rc.error(err)
-		}
-		p.Value = buf
-		return rc.ret()
-	case 22:
-		// public key
-		return payloadOf[Value256](p, rc)
-	case 23:
-		// etc_tx_flags16_t
-		return payloadOf[uint16](p, rc)
-	case 25: // currency::ref_by_id: hash + 32bits n
-		return payloadOf[*RefById](p, rc)
-	case 26: // uint64
-		return payloadOf[uint64](p, rc)
-	case 37:
-		return payloadOf[*TxInZcInput](p, rc)
-	case 38:
-		return payloadOf[*TxOutZarcanium](p, rc)
-	case 39:
-		return payloadOf[*ZarcaniumTxDataV1](p, rc)
-	case 43:
-		return payloadOf[*ZCSig](p, rc)
-	case 46:
-		return payloadOf[*ZCAssetSurjectionProof](p, rc)
-	case 47:
-		return payloadOf[*ZCOutsRangeProof](p, rc)
-	case 48:
-		return payloadOf[*ZCBalanceProof](p, rc)
-	default:
+	v, ok := variantTags[b]
+	if !ok {
 		return rc.error(fmt.Errorf("unsupported tag value: %d", b))
 	}
+
+	return v.read(p, rc)
 }
 
 func payloadOf[T any](p *Payload, rc *readCounter) (int64, error) {
