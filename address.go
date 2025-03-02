@@ -19,6 +19,7 @@ type Address struct {
 	PaymentId []byte
 }
 
+// ParseAddress will parse a zano address and return and Address object containing the address
 func ParseAddress(addr string) (*Address, error) {
 	payload, err := base58.Bitcoin.DecodeChunked(addr)
 	if err != nil {
@@ -70,6 +71,7 @@ func (addr *Address) Debug() string {
 	return fmt.Sprintf("type=%s spendKey=%x viewKey=%x paymentId=%x", addr.Type, addr.SpendKey, addr.ViewKey, addr.PaymentId)
 }
 
+// String returns the address encoded as a standard Zano address
 func (addr *Address) String() string {
 	// transform address back to a string
 	buf := slices.Concat(VarintAppendUint64(nil, uint64(addr.Type)), addr.SpendKey, addr.ViewKey)
