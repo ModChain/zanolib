@@ -1,7 +1,7 @@
 package zanolib
 
 type AccountPublicAddr struct {
-	SpendKey [32]byte
-	ViewKey  [32]byte
+	SpendKey Value256
+	ViewKey  Value256
 	Flags    uint8
 }

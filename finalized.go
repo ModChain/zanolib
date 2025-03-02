@@ -8,12 +8,12 @@ import (
 
 type FinalizedTx struct {
 	Tx             *Transaction
-	TxId           [32]byte // might be zeroes?
-	OneTimeKey     [32]byte // crypto::secret_key
+	TxId           Value256 // might be zeroes?
+	OneTimeKey     Value256 // crypto::secret_key
 	FTP            *FinalizeTxParam
 	HtlcOrigin     string
 	OutsKeyImages  []*KeyImageIndex // pairs (out_index, key_image) for each change output
-	Derivation     [32]byte         // crypto::key_derivation, a ec_point
+	Derivation     Value256         // crypto::key_derivation, a ec_point
 	WasNotPrepared bool             // true if tx was not prepared/created for some good reason (e.g. not enough outs for UTXO defragmentation tx). Because we decided not to throw exceptions for non-error cases. -- sowle
 }
 

@@ -1,12 +1,12 @@
 package zanolib
 
 type BPPSignature struct {
-	Lv    [][32]byte // std::vector<public_key> size = ceil( log_2(m * n) )
-	Rv    [][32]byte // std::vector<public_key>
-	A0    [32]byte   // public_key
-	A     [32]byte   // public_key
-	B     [32]byte   // public_key
-	R     [32]byte   // scalar_t
-	S     [32]byte   // scalar_t
-	Delta [32]byte   // scalar_t
+	Lv    []Value256 // std::vector<public_key> size = ceil( log_2(m * n) )
+	Rv    []Value256 // std::vector<public_key>
+	A0    Value256   // public_key
+	A     Value256   // public_key
+	B     Value256   // public_key
+	R     Value256   // scalar_t
+	S     Value256   // scalar_t
+	Delta Value256   // scalar_t
 }

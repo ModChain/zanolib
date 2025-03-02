@@ -8,10 +8,10 @@ type ZCOutsRangeProof struct {
 }
 
 type UGAggProof struct {
-	AmountCommitmentsForRPAgg [][32]byte // std::vector<public_key> E' = e * U + y' * G, premultiplied by 1/8
-	Y0s                       [][32]byte // scalar_vec_t
-	Y1s                       [][32]byte // scalar_vec_t
-	C                         [32]byte   // common challenge
+	AmountCommitmentsForRPAgg []Value256 // std::vector<public_key> E' = e * U + y' * G, premultiplied by 1/8
+	Y0s                       []Value256 // scalar_vec_t
+	Y1s                       []Value256 // scalar_vec_t
+	C                         Value256   // common challenge
 }
 
 // First part of a double Schnorr proof:
@@ -27,7 +27,7 @@ type ZCBalanceProof struct {
 }
 
 type GenericDoubleSchnorrSig struct {
-	C  [32]byte
-	Y0 [32]byte
-	Y1 [32]byte
+	C  Value256
+	Y0 Value256
+	Y1 Value256
 }

@@ -14,12 +14,12 @@ type FinalizeTxParam struct {
 	TxOutsAttr           uint8
 	Shuffle              bool
 	Flags                uint8
-	MultisigId           [32]byte    // crypto::hash
+	MultisigId           Value256    // crypto::hash
 	Sources              []*TxSource // currency::tx_source_entry
 	SelectedTransfers    []Varint    // not sure why, but this is encoded as "01 00" in the bytestream
 	PreparedDestinations []*TxDest   // currency::tx_destination_entry
 	ExpirationTime       uint64
-	SpendPubKey          [32]byte // only for validations
+	SpendPubKey          Value256 // only for validations
 	TxVersion            uint64
 	//TxHardforkId         uint64 // size_t; IN NEW VERSION FIXME
 	ModeSeparateFee uint64
@@ -28,7 +28,7 @@ type FinalizeTxParam struct {
 
 type KeyImageIndex struct {
 	OutIndex uint64
-	Image    [32]byte // ec_point
+	Image    Value256 // ec_point
 }
 
 func ParseFTP(buf, viewSecretKey []byte) (*FinalizeTxParam, error) {

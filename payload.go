@@ -36,7 +36,7 @@ func (p *Payload) ReadFrom(r io.Reader) (int64, error) {
 		return rc.ret()
 	case 22:
 		// public key
-		return payloadOf[[32]byte](p, rc)
+		return payloadOf[Value256](p, rc)
 	case 23:
 		// etc_tx_flags16_t
 		return payloadOf[uint16](p, rc)

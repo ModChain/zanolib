@@ -68,7 +68,7 @@ func (rc *readCounter) readVarBytes() ([]byte, error) {
 	return buf, nil
 }
 
-func (rc *readCounter) readVec32() ([][32]byte, error) {
+func (rc *readCounter) readVec32() ([]Value256, error) {
 	ln, err := VarintReadUint64(rc)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (rc *readCounter) readVec32() ([][32]byte, error) {
 	if ln > 128 {
 		return nil, fmt.Errorf("read vec32 too large: %d > 128", ln)
 	}
-	res := make([][32]byte, ln)
+	res := make([]Value256, ln)
 	for n := range res {
 		err = rc.readFull(res[n][:])
 		if err != nil {

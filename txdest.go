@@ -2,7 +2,7 @@ package zanolib
 
 type TxDestHtlcOut struct {
 	Expiration uint64
-	HtlcHash   [32]byte // crypto::hash
+	HtlcHash   Value256 // crypto::hash
 }
 
 type TxDest struct {
@@ -12,6 +12,6 @@ type TxDest struct {
 	AmountToProvide uint64               // amount money that provided by initial creator of tx, used with partially created transactions
 	UnlockTime      uint64               //
 	HtlcOptions     *TxDestHtlcOut       // destination_option_htlc_out
-	AssetId         [32]byte             // not blinded, not premultiplied
+	AssetId         Value256             // not blinded, not premultiplied
 	Flags           uint64               // set of flags (see tx_destination_entry_flags)
 }
