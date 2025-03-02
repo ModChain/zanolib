@@ -17,6 +17,10 @@ func (v *Value256) ReadFrom(r io.Reader) (int64, error) {
 	return rc.ret()
 }
 
+func (v Value256) Bytes() []byte {
+	return v[:]
+}
+
 func (v Value256) String() string {
 	return hex.EncodeToString(v[:])
 }

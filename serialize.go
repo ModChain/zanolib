@@ -1,0 +1,104 @@
+package zanolib
+
+import (
+	"encoding/binary"
+	"fmt"
+	"io"
+	"reflect"
+)
+
+type byter interface {
+	Bytes() []byte
+}
+
+var (
+	byterType    = reflect.TypeFor[byter]()
+	writerToType = reflect.TypeFor[io.WriterTo]()
+)
+
+func Serialize(w io.Writer, source any) error {
+	obj := reflect.ValueOf(source)
+	t := obj.Type()
+
+	for t.Kind() == reflect.Ptr {
+		if t.Implements(writerToType) {
+			_, err := obj.Interface().(io.WriterTo).WriteTo(w)
+			return err
+		}
+		if t.Implements(byterType) {
+			buf := obj.Interface().(byter).Bytes()
+			_, err := w.Write(buf)
+			return err
+		}
+		obj = obj.Elem()
+		t = obj.Type()
+	}
+	if t == byteArrayType {
+		return subSerialize(w, obj.Interface(), "!")
+	}
+	if t.Kind() == reflect.Slice {
+		ln := obj.Len()
+		_, err := w.Write(Varint(ln).Bytes())
+		if err != nil {
+			return err
+		}
+		for i := 0; i < ln; i++ {
+			err = Serialize(w, obj.Index(i))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if t.Kind() != reflect.Struct {
+		return subSerialize(w, obj.Interface(), "!")
+	}
+
+	nf := t.NumField()
+	for i := 0; i < nf; i += 1 {
+		tf := t.Field(i)
+		tag := tf.Tag.Get("epee")
+		err := subSerialize(w, obj.Field(i).Interface(), tag)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func subSerialize(w io.Writer, o any, tag string) error {
+	var err error
+	switch v := o.(type) {
+	case bool, uint8, uint16:
+		err = binary.Write(w, binary.LittleEndian, v)
+	case uint64:
+		if tag == "varint" {
+			_, err = w.Write(Varint(v).Bytes())
+		} else {
+			err = binary.Write(w, binary.LittleEndian, v)
+		}
+	case [32]byte:
+		_, err = w.Write(v[:])
+	case string:
+		ln := len(v)
+		_, err = w.Write(Varint(ln).Bytes())
+		if err != nil {
+			return err
+		}
+		_, err = w.Write([]byte(v))
+	case []byte:
+		ln := len(v)
+		_, err = w.Write(Varint(ln).Bytes())
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(v)
+	default:
+		if tag == "!" {
+			return fmt.Errorf("unsupported serialize type %T", o)
+		}
+		err = Serialize(w, v)
+
+	}
+	return err
+}
