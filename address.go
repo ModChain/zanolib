@@ -91,6 +91,40 @@ func (addr *Address) String() string {
 	return base58.Bitcoin.EncodeChunked(buf)
 }
 
+// SetPaymentId sets the payment ID for the given address, and updates the
+// address type accordingly.
+func (addr *Address) SetPaymentId(paymentId []byte) error {
+	if len(paymentId) > 128 {
+		return errors.New("payment id is too long")
+	}
+
+	if len(paymentId) == 0 {
+		// remove payment id
+		addr.PaymentId = nil
+		switch addr.Type {
+		case PublicIntegAddress, PublicIntegAddressV2:
+			addr.Type = PublicAddress
+		case PublicAuditIntegAddress:
+			addr.Type = PublicAuditAddress
+		}
+		return nil
+	}
+
+	addr.PaymentId = paymentId
+
+	switch addr.Type {
+	case PublicAddress:
+		if addr.Flags != 0 {
+			addr.Type = PublicIntegAddressV2
+		} else {
+			addr.Type = PublicIntegAddress
+		}
+	case PublicAuditAddress:
+		addr.Type = PublicAuditIntegAddress
+	}
+	return nil
+}
+
 func sha3_256(v []byte) []byte {
 	h := sha3.NewLegacyKeccak256()
 	h.Write(v)
