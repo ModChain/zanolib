@@ -37,7 +37,7 @@ func ParseAddress(addr string) (*Address, error) {
 	}
 
 	// address starts with a varint
-	payload, typ, err := VarintReadUint64(payload)
+	payload, typ, err := VarintTakeUint64(payload)
 	if err != nil {
 		return nil, err
 	}

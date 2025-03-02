@@ -1,6 +1,9 @@
 package zanolib
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
 
 func VarintPackedSize(v uint64) int {
 	switch {
@@ -32,7 +35,7 @@ func VarintAppendUint64(buf []byte, v uint64) []byte {
 	return buf
 }
 
-func VarintReadUint64(buf []byte) ([]byte, uint64, error) {
+func VarintTakeUint64(buf []byte) ([]byte, uint64, error) {
 	var v uint64
 	var offt int
 	for len(buf) > 0 && buf[0]&0x80 == 0x80 {
@@ -45,4 +48,27 @@ func VarintReadUint64(buf []byte) ([]byte, uint64, error) {
 	}
 	v |= uint64(buf[0]) << offt
 	return buf[1:], v, nil
+}
+
+func VarintReadUint64(r io.ByteReader) (uint64, error) {
+	var v uint64
+	var offt int
+	for {
+		n, err := r.ReadByte()
+		if err != nil {
+			return v, notEOF(err)
+		}
+		v |= (uint64(n) & 0x7f) << offt
+		offt += 7
+		if n&0x80 == 0 {
+			return v, nil
+		}
+	}
+}
+
+func notEOF(e error) error {
+	if errors.Is(e, io.EOF) {
+		return io.ErrUnexpectedEOF
+	}
+	return e
 }

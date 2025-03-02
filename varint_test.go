@@ -11,7 +11,7 @@ func TestVarint(t *testing.T) {
 
 	for _, vec := range vectors {
 		buf := zanolib.VarintAppendUint64(nil, vec)
-		buf2, dec, err := zanolib.VarintReadUint64(buf)
+		buf2, dec, err := zanolib.VarintTakeUint64(buf)
 
 		if err != nil {
 			t.Errorf("while decoding %x: %s", vec, err)
