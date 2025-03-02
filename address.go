@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"hash"
 	"slices"
 
 	"github.com/ModChain/base58"
@@ -29,7 +30,7 @@ func ParseAddress(addr string) (*Address, error) {
 	ckSum := payload[len(payload)-4:]
 	payload = payload[:len(payload)-4]
 
-	check := sha3_256(payload)
+	check := hsum(sha3.NewLegacyKeccak256, payload)
 	if !bytes.Equal(check[:4], ckSum) {
 		return nil, errors.New("invalid checksum in address")
 	}
@@ -86,7 +87,7 @@ func (addr *Address) String() string {
 	}
 
 	// hash
-	buf = append(buf, sha3_256(buf)[:4]...)
+	buf = append(buf, hsum(sha3.NewLegacyKeccak256, buf)[:4]...)
 	// encode
 	return base58.Bitcoin.EncodeChunked(buf)
 }
@@ -125,8 +126,8 @@ func (addr *Address) SetPaymentId(paymentId []byte) error {
 	return nil
 }
 
-func sha3_256(v []byte) []byte {
-	h := sha3.NewLegacyKeccak256()
+func hsum(f func() hash.Hash, v []byte) []byte {
+	h := f()
 	h.Write(v)
 	return h.Sum(nil)
 }
