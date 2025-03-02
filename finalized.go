@@ -2,6 +2,8 @@ package zanolib
 
 import (
 	"bytes"
+	"errors"
+	"io"
 )
 
 type FinalizedTx struct {
@@ -32,7 +34,10 @@ func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {
 		return nil, err
 	}
 
-	//final := must(io.ReadAll(r))
-	//log.Printf("remaining data:\n%s", hex.Dump(final))
+	final := must(io.ReadAll(r))
+	if len(final) != 0 {
+		//log.Printf("remaining data:\n%s", hex.Dump(final))
+		return nil, errors.New("trailing data")
+	}
 	return res, nil
 }
