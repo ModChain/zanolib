@@ -7,6 +7,7 @@ import (
 	"slices"
 
 	"github.com/ModChain/base58"
+	"github.com/ModChain/zanolib/zanobase"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -36,7 +37,7 @@ func ParseAddress(addr string) (*Address, error) {
 	}
 
 	// address starts with a varint
-	payload, typ, err := VarintTakeUint64(payload)
+	payload, typ, err := zanobase.VarintTakeUint64(payload)
 	if err != nil {
 		return nil, err
 	}
@@ -73,7 +74,7 @@ func (addr *Address) Debug() string {
 // String returns the address encoded as a standard Zano address
 func (addr *Address) String() string {
 	// transform address back to a string
-	buf := slices.Concat(VarintAppendUint64(nil, uint64(addr.Type)), addr.SpendKey, addr.ViewKey)
+	buf := slices.Concat(zanobase.VarintAppendUint64(nil, uint64(addr.Type)), addr.SpendKey, addr.ViewKey)
 	switch addr.Type {
 	case PublicAddress:
 		// because PublicAddress has no payment id, presence of extra data means flags

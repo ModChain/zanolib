@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type BPPSignature struct {
 	Lv    []Value256 // std::vector<public_key> size = ceil( log_2(m * n) )

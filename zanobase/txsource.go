@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type TxSourceOutputEntry struct {
 	OutReference     *Payload // TxOutRef // either global output index or ref_by_id

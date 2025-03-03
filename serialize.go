@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+
+	"github.com/ModChain/zanolib/zanobase"
 )
 
 type byter interface {
@@ -36,9 +38,12 @@ func Serialize(w io.Writer, source any) error {
 	if t == byteArrayType {
 		return subSerialize(w, obj.Interface(), "!")
 	}
+	if t == variantType {
+		return subSerialize(w, obj.Interface(), "!")
+	}
 	if t.Kind() == reflect.Slice {
 		ln := obj.Len()
-		_, err := w.Write(Varint(ln).Bytes())
+		_, err := w.Write(zanobase.Varint(ln).Bytes())
 		if err != nil {
 			return err
 		}
@@ -73,7 +78,7 @@ func subSerialize(w io.Writer, o any, tag string) error {
 		err = binary.Write(w, binary.LittleEndian, v)
 	case uint64:
 		if tag == "varint" {
-			_, err = w.Write(Varint(v).Bytes())
+			_, err = w.Write(zanobase.Varint(v).Bytes())
 		} else {
 			err = binary.Write(w, binary.LittleEndian, v)
 		}
@@ -81,18 +86,24 @@ func subSerialize(w io.Writer, o any, tag string) error {
 		_, err = w.Write(v[:])
 	case string:
 		ln := len(v)
-		_, err = w.Write(Varint(ln).Bytes())
+		_, err = w.Write(zanobase.Varint(ln).Bytes())
 		if err != nil {
 			return err
 		}
 		_, err = w.Write([]byte(v))
 	case []byte:
 		ln := len(v)
-		_, err = w.Write(Varint(ln).Bytes())
+		_, err = w.Write(zanobase.Varint(ln).Bytes())
 		if err != nil {
 			return err
 		}
 		_, err = w.Write(v)
+	case zanobase.Variant:
+		_, err = w.Write([]byte{byte(v.Tag)})
+		if err != nil {
+			return err
+		}
+		return Serialize(w, v.Value)
 	default:
 		if tag == "!" {
 			return fmt.Errorf("unsupported serialize type %T", o)

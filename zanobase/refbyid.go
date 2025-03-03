@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type RefById struct {
 	Hash Value256 // source transaction hash

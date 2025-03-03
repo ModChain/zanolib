@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type ZCOutsRangeProof struct {
 	// zc_outs_range_proof

@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type Transaction struct {
 	Version Varint     `json:"version"` // varint, ==2

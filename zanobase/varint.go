@@ -1,8 +1,10 @@
-package zanolib
+package zanobase
 
 import (
 	"errors"
 	"io"
+
+	"github.com/KarpelesLab/rc"
 )
 
 type Varint uint64
@@ -12,13 +14,13 @@ func (v Varint) Bytes() []byte {
 }
 
 func (v *Varint) ReadFrom(r io.Reader) (int64, error) {
-	rc := rc(r)
+	rc := rc.New(r)
 	n, err := VarintReadUint64(rc)
 	if err != nil {
-		return rc.error(err)
+		return rc.Error64(err)
 	}
 	*v = Varint(n)
-	return rc.ret()
+	return rc.Ret64()
 }
 
 func VarintPackedSize(v uint64) int {

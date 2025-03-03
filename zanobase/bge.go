@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type BGEProof struct {
 	A  Value256   // public_key, premultiplied by 1/8

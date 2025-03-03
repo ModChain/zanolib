@@ -10,6 +10,7 @@ require (
 
 require (
 	github.com/KarpelesLab/pjson v0.1.7 // indirect
+	github.com/KarpelesLab/rc v1.0.0 // indirect
 	github.com/KarpelesLab/typutil v0.2.26 // indirect
 	github.com/ModChain/ethrpc v0.2.6 // indirect
 	golang.org/x/sys v0.30.0 // indirect

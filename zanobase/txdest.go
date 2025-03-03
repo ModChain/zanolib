@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type TxDestHtlcOut struct {
 	Expiration uint64

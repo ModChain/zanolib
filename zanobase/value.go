@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 import (
 	"encoding/hex"
@@ -9,12 +9,8 @@ import (
 type Value256 [32]byte
 
 func (v *Value256) ReadFrom(r io.Reader) (int64, error) {
-	rc := rc(r)
-	err := rc.readFull(v[:])
-	if err != nil {
-		return rc.error(err)
-	}
-	return rc.ret()
+	n, err := io.ReadFull(r, v[:])
+	return int64(n), err
 }
 
 func (v Value256) Bytes() []byte {

@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type AccountPublicAddr struct {
 	SpendKey Value256

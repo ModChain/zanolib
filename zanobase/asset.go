@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type ZCAssetSurjectionProof struct {
 	// zc_asset_surjection_proof

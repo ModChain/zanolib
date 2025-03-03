@@ -5,32 +5,28 @@ import (
 	"errors"
 	"io"
 
+	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
 type FinalizeTxParam struct {
 	UnlockTime           uint64
-	Extra                []*Payload         // currency::extra_v
-	Attachments          []*Payload         // currency::attachment_v
-	CryptAddress         *AccountPublicAddr // currency::account_public_address
+	Extra                []*zanobase.Payload         // currency::extra_v
+	Attachments          []*zanobase.Payload         // currency::attachment_v
+	CryptAddress         *zanobase.AccountPublicAddr // currency::account_public_address
 	TxOutsAttr           uint8
 	Shuffle              bool
 	Flags                uint8
-	MultisigId           Value256    // crypto::hash
-	Sources              []*TxSource // currency::tx_source_entry
-	SelectedTransfers    []Varint    // not sure why, but this is encoded as "01 00" in the bytestream
-	PreparedDestinations []*TxDest   // currency::tx_destination_entry
+	MultisigId           zanobase.Value256    // crypto::hash
+	Sources              []*zanobase.TxSource // currency::tx_source_entry
+	SelectedTransfers    []zanobase.Varint    // not sure why, but this is encoded as "01 00" in the bytestream
+	PreparedDestinations []*zanobase.TxDest   // currency::tx_destination_entry
 	ExpirationTime       uint64
-	SpendPubKey          Value256 // only for validations
+	SpendPubKey          zanobase.Value256 // only for validations
 	TxVersion            uint64
 	//TxHardforkId         uint64 // size_t; IN NEW VERSION FIXME
 	ModeSeparateFee uint64
 	//GenContext      *GenContext // if flags & TX_FLAG_SIGNATURE_MODE_SEPARATE
-}
-
-type KeyImageIndex struct {
-	OutIndex uint64
-	Image    Value256 // ec_point
 }
 
 func ParseFTP(buf, viewSecretKey []byte) (*FinalizeTxParam, error) {

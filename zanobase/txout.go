@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 type TxOutZarcanium struct {
 	// tx_out_zarcanum

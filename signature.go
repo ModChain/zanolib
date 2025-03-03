@@ -8,23 +8,8 @@ import (
 	"slices"
 
 	"github.com/ModChain/edwards25519"
+	"github.com/ModChain/zanolib/zanobase"
 )
-
-type ZCSig struct {
-	// ZC_sig
-	PseudoOutAmountCommitment Value256 // premultiplied by 1/8
-	PseudoOutBlindedAssetId   Value256 // premultiplied by 1/8
-	// crypto::CLSAG_GGX_signature_serialized clsags_ggx
-	GGX *CLSAG_Sig
-}
-
-type CLSAG_Sig struct {
-	C   Value256   // scalar_t
-	R_G []Value256 // for G-components (layers 0, 1),    size = size of the ring
-	R_X []Value256 // for X-component  (layer 2),        size = size of the ring
-	K1  Value256   // public_key auxiliary key image for layer 1 (G)
-	K2  Value256   // public_key auxiliary key image for layer 2 (X)
-}
 
 func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 	if !bytes.Equal(ftp.SpendPubKey[:], w.SpendPubKey.Serialize()) {
@@ -34,15 +19,20 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 	if ftp.TxVersion != 2 {
 		return nil, fmt.Errorf("unsupported tx version = %d", ftp.TxVersion)
 	}
-	tx := &Transaction{Version: 2}
+	tx := &zanobase.Transaction{Version: 2}
 	res := &FinalizedTx{
 		Tx:  tx,
 		FTP: ftp,
 	}
 
-	// generate_key_image_helper(sender_account_keys, src_entr.real_out_tx_key, src_entr.real_output_in_tx_index, in_context.in_ephemeral, img)
-	// → derive_ephemeral_key_helper(ack, tx_public_key, real_output_index, in_ephemeral)
-	// → crypto::generate_key_image(in_ephemeral.pub, in_ephemeral.sec, ki);
+	// void wallet2::sign_transfer(const std::string& tx_sources_blob, std::string& signed_tx_blob, currency::transaction& tx)
+	// @ src/wallet/wallet2.cpp 4299
+
+	// finalize_transaction(ft.ftp, ft.tx, ft.one_time_key, false);
+	// @ src/wallet/wallet2.cpp 7954
+
+	// currency::construct_tx(m_account.get_keys(), ftp, result);
+	// @ src/currency_core/currency_format_utils.cpp 2372
 
 	// FIXME one time key hardcoded
 	// construct tx uses some method to get an intial value?
@@ -54,22 +44,24 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 		return nil, err
 	}
 	_, _ = priv, pub
-	var pubKey Value256
+
+	var pubKey zanobase.Value256
 	copy(pubKey[:], pub.Serialize())
-	tx.Extra = append(tx.Extra, &Payload{Tag: 22, Value: pubKey})
-	tx.Extra = append(tx.Extra, &Payload{Tag: 23, Value: uint16(0)})
+	tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagPubKey, Value: pubKey})
+	tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagEtcTxFlags16, Value: uint16(0)}) // Flags
 
 	// use ftp.Sources
 	for _, src := range ftp.Sources {
-		vin := &TxInZcInput{}
+		vin := &zanobase.TxInZcInput{}
 		var prev uint64
 		for _, out := range src.Outputs {
-			val := payloadAs[uint64](out.OutReference)
+			// generate_key_image_helper(sender_account_keys, src_entr.real_out_tx_key, src_entr.real_output_in_tx_index, in_context.in_ephemeral, img))
+			val := zanobase.VariantAs[uint64](out.OutReference)
 			cur := val - prev
 			prev = val
-			vin.KeyOffsets = append(vin.KeyOffsets, payloadFor(cur))
+			vin.KeyOffsets = append(vin.KeyOffsets, zanobase.VariantFor(cur))
 		}
-		tx.Vin = append(tx.Vin, payloadFor(vin))
+		tx.Vin = append(tx.Vin, zanobase.VariantFor(vin))
 	}
 
 	return res, nil
