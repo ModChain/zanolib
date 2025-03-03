@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ModChain/edwards25519"
-	"github.com/ModChain/zanolib"
+	"github.com/ModChain/zanolib/zanocrypto"
 )
 
 func TestHashToEC(t *testing.T) {
@@ -276,7 +276,7 @@ func TestHashToEC(t *testing.T) {
 			t.Errorf("Failed to parse key: %s", err)
 			continue
 		}
-		v, err := zanolib.HashToEC(key)
+		v, err := zanocrypto.HashToEC(key)
 		if err != nil {
 			t.Errorf("HashToEC failed: %s", err)
 			continue

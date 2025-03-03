@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/ModChain/edwards25519"
-	"github.com/ModChain/zanolib"
+	"github.com/ModChain/zanolib/zanocrypto"
 )
 
 func TestKeyImage(t *testing.T) {
@@ -280,7 +280,7 @@ func TestKeyImage(t *testing.T) {
 		}
 		//priv, _ := edwards25519.PrivKeyFromBytes(must(hex.DecodeString(vecA[1])))
 
-		res, err := zanolib.ComputeKeyImage(must(hex.DecodeString(vecA[1])), pub)
+		res, err := zanocrypto.ComputeKeyImage(must(hex.DecodeString(vecA[1])), pub)
 		if err != nil {
 			t.Errorf("ComputeKeyImage error: %s", err)
 			continue
@@ -290,4 +290,11 @@ func TestKeyImage(t *testing.T) {
 			t.Errorf("ComputeKeyImage(%s,%s)=%x instead of %s", vecA[1], vecA[0], res, vecA[2])
 		}
 	}
+}
+
+func must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
