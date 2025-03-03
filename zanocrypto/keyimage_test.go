@@ -2,6 +2,7 @@ package zanocrypto_test
 
 import (
 	"encoding/hex"
+	"slices"
 	"strings"
 	"testing"
 
@@ -278,9 +279,15 @@ func TestKeyImage(t *testing.T) {
 			t.Errorf("Failed to parse key: %s", err)
 			continue
 		}
-		//priv, _ := edwards25519.PrivKeyFromBytes(must(hex.DecodeString(vecA[1])))
+		privBuf := must(hex.DecodeString(vecA[1]))
+		slices.Reverse(privBuf) // because little endian
+		priv, _, err := edwards25519.PrivKeyFromScalar(privBuf)
+		if err != nil {
+			t.Errorf("Failed to parse key: %s", err)
+			continue
+		}
 
-		res, err := zanocrypto.ComputeKeyImage(must(hex.DecodeString(vecA[1])), pub)
+		res, err := zanocrypto.ComputeKeyImage(priv, pub)
 		if err != nil {
 			t.Errorf("ComputeKeyImage error: %s", err)
 			continue
