@@ -1,4 +1,4 @@
-package zanolib
+package zanocrypto
 
 import (
 	"fmt"
@@ -12,7 +12,9 @@ func HashToEC(pub *edwards25519.PublicKey) (*edwards25519.ExtendedGroupElement, 
 	if len(pubBytes) != 32 {
 		return nil, fmt.Errorf("public key must be 32 bytes, got %d", len(pubBytes))
 	}
-	hashed := hsum(sha3.NewLegacyKeccak256, pubBytes)
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(pubBytes)
+	hashed := hash.Sum(nil)
 	var h [32]byte
 	copy(h[:], hashed)
 

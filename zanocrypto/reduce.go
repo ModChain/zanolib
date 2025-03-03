@@ -1,4 +1,4 @@
-package zanolib
+package zanocrypto
 
 // ScReduce32 reduces a 32-byte scalar modulo the group order for Ed25519
 // and modifies the input slice in place.

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"errors"
 	"io"
+
+	"github.com/ModChain/zanolib/zanocrypto"
 )
 
 type FinalizeTxParam struct {
@@ -32,11 +34,11 @@ type KeyImageIndex struct {
 }
 
 func ParseFTP(buf, viewSecretKey []byte) (*FinalizeTxParam, error) {
-	code, err := ChaCha8GenerateKey(viewSecretKey)
+	code, err := zanocrypto.ChaCha8GenerateKey(viewSecretKey)
 	if err != nil {
 		return nil, err
 	}
-	buf, err = ChaCha8(code, make([]byte, 8), buf)
+	buf, err = zanocrypto.ChaCha8(code, make([]byte, 8), buf)
 	if err != nil {
 		return nil, err
 	}

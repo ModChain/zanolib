@@ -4,6 +4,7 @@ import (
 	"slices"
 
 	"github.com/ModChain/edwards25519"
+	"github.com/ModChain/zanolib/zanocrypto"
 	"golang.org/x/crypto/sha3"
 )
 
@@ -30,7 +31,7 @@ func LoadSpendSecret(pk []byte, flags uint8) (*Wallet, error) {
 	}
 
 	// load view key
-	ScReduce32(viewKey)
+	zanocrypto.ScReduce32(viewKey)
 	slices.Reverse(viewKey)
 	vpriv, vpub, err := edwards25519.PrivKeyFromScalar(viewKey)
 	if err != nil {

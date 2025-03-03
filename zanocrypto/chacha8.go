@@ -1,4 +1,4 @@
-package zanolib
+package zanocrypto
 
 import (
 	"encoding/binary"
@@ -14,7 +14,9 @@ func ChaCha8GenerateKey(seed []byte) ([]byte, error) {
 	if len(seed) < 32 {
 		return nil, errors.New("Size of hash must be at least that of chacha8_key")
 	}
-	return hsum(sha3.NewLegacyKeccak256, seed), nil
+	hash := sha3.NewLegacyKeccak256()
+	hash.Write(seed)
+	return hash.Sum(nil), nil
 }
 
 // ChaCha8 applies the ChaCha8 stream cipher to `in` using the 32-byte key `key`

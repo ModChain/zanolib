@@ -1,4 +1,4 @@
-package zanolib_test
+package zanocrypto_test
 
 import (
 	"encoding/hex"

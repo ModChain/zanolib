@@ -1,4 +1,4 @@
-package zanolib
+package zanocrypto
 
 import (
 	"github.com/ModChain/edwards25519"

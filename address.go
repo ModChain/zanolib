@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"hash"
 	"slices"
 
 	"github.com/ModChain/base58"
@@ -126,10 +125,4 @@ func (addr *Address) SetPaymentId(paymentId []byte) error {
 		addr.Type = PublicAuditIntegAddress
 	}
 	return nil
-}
-
-func hsum(f func() hash.Hash, v []byte) []byte {
-	h := f()
-	h.Write(v)
-	return h.Sum(nil)
 }
