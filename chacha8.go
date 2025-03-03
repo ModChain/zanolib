@@ -10,7 +10,7 @@ import (
 
 // Zano uses chacha8 to encrypt unsigned transactions
 
-func Chacha8GenerateKey(seed []byte) ([]byte, error) {
+func ChaCha8GenerateKey(seed []byte) ([]byte, error) {
 	if len(seed) < 32 {
 		return nil, errors.New("Size of hash must be at least that of chacha8_key")
 	}

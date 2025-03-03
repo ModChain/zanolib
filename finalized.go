@@ -18,7 +18,7 @@ type FinalizedTx struct {
 }
 
 func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {
-	code, err := Chacha8GenerateKey(viewSecretKey)
+	code, err := ChaCha8GenerateKey(viewSecretKey)
 	if err != nil {
 		return nil, err
 	}

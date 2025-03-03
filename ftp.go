@@ -32,7 +32,7 @@ type KeyImageIndex struct {
 }
 
 func ParseFTP(buf, viewSecretKey []byte) (*FinalizeTxParam, error) {
-	code, err := Chacha8GenerateKey(viewSecretKey)
+	code, err := ChaCha8GenerateKey(viewSecretKey)
 	if err != nil {
 		return nil, err
 	}
