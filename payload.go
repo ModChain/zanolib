@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"reflect"
 )
 
 type Payload struct {
@@ -13,25 +14,43 @@ type Payload struct {
 
 type tagDefinition struct {
 	read func(p *Payload, rc *readCounter) (int64, error)
+	new  func() any
 	name string
 }
 
-var variantTags = map[uint8]*tagDefinition{
-	0:  {payloadOf[*TxInGen], "gen"},
-	11: {payloadOf[[]byte], "derivation_hint"},
-	22: {payloadOf[Value256], "pub_key"},
-	23: {payloadOf[uint16], "etc_tx_flags16"},
-	24: {payloadOf[uint16], "derive_xor"},
-	25: {payloadOf[*RefById], "ref_by_id"},
-	26: {payloadOf[uint64], "uint64_t"},
-	28: {payloadOf[uint32], "uint32_t"},
-	37: {payloadOf[*TxInZcInput], "txin_zc_input"},
-	38: {payloadOf[*TxOutZarcanium], "tx_out_zarcanum"},
-	39: {payloadOf[*ZarcaniumTxDataV1], "zarcanum_tx_data_v1"},
-	43: {payloadOf[*ZCSig], "ZC_sig"},
-	46: {payloadOf[*ZCAssetSurjectionProof], "zc_asset_surjection_proof"},
-	47: {payloadOf[*ZCOutsRangeProof], "zc_outs_range_proof"},
-	48: {payloadOf[*ZCBalanceProof], "zc_balance_proof"},
+var (
+	variantTags   = make(map[uint8]*tagDefinition)
+	tagNameLookup = make(map[string]uint8)
+	tagTypeLookup = make(map[reflect.Type]uint8)
+)
+
+func defTag[T any](tag uint8, name string) {
+	variantTags[tag] = &tagDefinition{
+		read: payloadOf[T],
+		name: name,
+	}
+	tagNameLookup[name] = tag
+
+	t := reflect.TypeFor[T]()
+	tagTypeLookup[t] = tag
+}
+
+func init() {
+	defTag[*TxInGen](0, "gen")
+	defTag[[]byte](11, "derivation_hint")
+	defTag[Value256](22, "pub_key")
+	defTag[uint16](23, "etc_tx_flags16")
+	defTag[uint16](24, "derive_xor")
+	defTag[*RefById](25, "ref_by_id")
+	defTag[uint64](26, "uint64_t")
+	defTag[uint32](28, "uint32_t")
+	defTag[*TxInZcInput](37, "txin_zc_input")
+	defTag[*TxOutZarcanium](38, "tx_out_zarcanum")
+	defTag[*ZarcaniumTxDataV1](39, "zarcanum_tx_data_v1")
+	defTag[*ZCSig](43, "ZC_sig")
+	defTag[*ZCAssetSurjectionProof](46, "zc_asset_surjection_proof")
+	defTag[*ZCOutsRangeProof](47, "zc_outs_range_proof")
+	defTag[*ZCBalanceProof](48, "zc_balance_proof")
 }
 
 type marshalledPayload struct {
@@ -72,6 +91,15 @@ func (p *Payload) ReadFrom(r io.Reader) (int64, error) {
 	return v.read(p, rc)
 }
 
+func payloadFor[T any](obj T) *Payload {
+	t := reflect.TypeFor[T]()
+	tag, ok := tagTypeLookup[t]
+	if !ok {
+		tag = 0xff
+	}
+	return &Payload{Tag: tag, Value: obj}
+}
+
 func payloadOf[T any](p *Payload, rc *readCounter) (int64, error) {
 	var val T
 	err := Deserialize(rc, &val)
@@ -80,6 +108,10 @@ func payloadOf[T any](p *Payload, rc *readCounter) (int64, error) {
 	}
 	p.Value = val
 	return rc.ret()
+}
+
+func payloadAs[T any](p *Payload) T {
+	return p.Value.(T)
 }
 
 func arrayOf[T any, PT interface {

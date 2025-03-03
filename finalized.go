@@ -7,14 +7,14 @@ import (
 )
 
 type FinalizedTx struct {
-	Tx             *Transaction
-	TxId           Value256 // might be zeroes?
-	OneTimeKey     Value256 // crypto::secret_key
-	FTP            *FinalizeTxParam
-	HtlcOrigin     string
-	OutsKeyImages  []*KeyImageIndex // pairs (out_index, key_image) for each change output
-	Derivation     Value256         // crypto::key_derivation, a ec_point
-	WasNotPrepared bool             // true if tx was not prepared/created for some good reason (e.g. not enough outs for UTXO defragmentation tx). Because we decided not to throw exceptions for non-error cases. -- sowle
+	Tx             *Transaction     `json:"tx"`
+	TxId           Value256         `json:"txid"`         // might be zeroes?
+	OneTimeKey     Value256         `json:"one_time_key"` // crypto::secret_key
+	FTP            *FinalizeTxParam `json:"ftp"`
+	HtlcOrigin     string           `json:"htlc_origin"`
+	OutsKeyImages  []*KeyImageIndex `json:"outs_key_images,omitempty"` // pairs (out_index, key_image) for each change output
+	Derivation     Value256         `json:"derivation"`                // crypto::key_derivation, a ec_point
+	WasNotPrepared bool             `json:"was_not_prepared"`          // true if tx was not prepared/created for some good reason (e.g. not enough outs for UTXO defragmentation tx). Because we decided not to throw exceptions for non-error cases. -- sowle
 }
 
 func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {

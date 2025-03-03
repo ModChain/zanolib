@@ -6,6 +6,8 @@ github.com/ModChain/base58 v1.1.0 h1:oatOQDbV2lrP14TtXDQ0D+VqFl+T8d0VsI1RrQ/UO0k
 github.com/ModChain/base58 v1.1.0/go.mod h1:/FvdI5MHtcByk2Hn/3F1TuaqLjZ3R9MvDS1Z7fd6Qyc=
 github.com/ModChain/edwards25519 v1.0.1 h1:BacxhRtCEu+pLWZhN3lJmFmXZkuoxEaCP7ICMP7YC70=
 github.com/ModChain/edwards25519 v1.0.1/go.mod h1:kjiZ1iVWnsHVMHeIgWFu26ik6/jPlE+c9MrfO5wbLm4=
+github.com/ModChain/edwards25519 v1.1.0 h1:TA+N2k1RunTPOMDSeZWnJLrfYGUIXYjXy6BfHYGh6U4=
+github.com/ModChain/edwards25519 v1.1.0/go.mod h1:kjiZ1iVWnsHVMHeIgWFu26ik6/jPlE+c9MrfO5wbLm4=
 github.com/ModChain/ethrpc v0.2.6 h1:kBwqYCv/W1CFUS/YTB36S7PnfnBWBOn+FNOnm37SnpA=
 github.com/ModChain/ethrpc v0.2.6/go.mod h1:egUGmkgnfDmMsxd8bfgSwpTyrLORPu5VNRWuMO/HEzE=
 golang.org/x/crypto v0.35.0 h1:b15kiHdrGCHrP6LvwaQ3c03kgNhhiMgvlhxHQhmg2Xs=

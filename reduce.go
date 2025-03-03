@@ -1,13 +1,5 @@
 package zanolib
 
-func load3(in []byte) int64 {
-	return int64(in[0]) | (int64(in[1]) << 8) | (int64(in[2]) << 16)
-}
-
-func load4(in []byte) int64 {
-	return int64(in[0]) | (int64(in[1]) << 8) | (int64(in[2]) << 16) | (int64(in[3]) << 24)
-}
-
 // ScReduce32 reduces a 32-byte scalar modulo the group order for Ed25519
 // and modifies the input slice in place.
 func ScReduce32(s []byte) {
@@ -15,6 +7,7 @@ func ScReduce32(s []byte) {
 		panic("ScReduce32: input must be 32 bytes")
 	}
 
+	// 2097151 == 0x1fffff
 	s0 := (load3(s[0:3])) & 2097151
 	s1 := (load4(s[2:6]) >> 5) & 2097151
 	s2 := (load3(s[5:8]) >> 2) & 2097151

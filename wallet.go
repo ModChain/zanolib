@@ -67,3 +67,17 @@ func (w *Wallet) Address() *Address {
 
 	return addr
 }
+
+func (w *Wallet) ParseFTP(buf []byte) (*FinalizeTxParam, error) {
+	// buf is encrypted using chacha8 xor initialized with the view private key
+	key := w.ViewPrivKey.Serialize()
+	slices.Reverse(key)
+	return ParseFTP(buf, key)
+}
+
+func (w *Wallet) ParseFinalized(buf []byte) (*FinalizedTx, error) {
+	// buf is encrypted using chacha8 xor initialized with the view private key
+	key := w.ViewPrivKey.Serialize()
+	slices.Reverse(key)
+	return ParseFinalized(buf, key)
+}
