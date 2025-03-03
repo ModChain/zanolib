@@ -18,7 +18,9 @@ type Wallet struct {
 // LoadSpendSecret initializesd a Wallet based on a spend secret as found in
 // zano if you run spendkey. Note that zano's displayed key is in little endian
 // so this function will reverse the bytes for you.
-func LoadSpendSecret(pk []byte, Flags uint8) (*Wallet, error) {
+//
+// Set flags to zero for normal keys, or 1 for auditable keys.
+func LoadSpendSecret(pk []byte, flags uint8) (*Wallet, error) {
 	pk = slices.Clone(pk)
 	viewKey := hsum(sha3.NewLegacyKeccak256, pk)
 	slices.Reverse(pk)
@@ -40,6 +42,7 @@ func LoadSpendSecret(pk []byte, Flags uint8) (*Wallet, error) {
 		SpendPubKey:  pub,
 		ViewPrivKey:  vpriv,
 		ViewPubKey:   vpub,
+		Flags:        flags,
 	}
 	//log.Printf("spend pub = %x", pub.Serialize())
 	//log.Printf("view pub = %x", vpub.Serialize())
