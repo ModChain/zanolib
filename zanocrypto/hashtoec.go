@@ -127,8 +127,7 @@ func geFromFeFromBytesVartime(r *edwards25519.ProjectiveGroupElement, s *[32]byt
 	edwards25519.FeAdd(&x, &x, &y)
 
 	// r->X = (w / x)^(m+1)
-	// This is the fe_divpowm1 call
-	FeDivPowM1(&r.X, &w, &x)
+	edwards25519.FeDivPowM1(&r.X, &w, &x)
 
 	// y = (r->X)^2
 	edwards25519.FeSquare(&y, &r.X)

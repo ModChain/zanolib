@@ -9,6 +9,7 @@ import (
 
 	"github.com/ModChain/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
+	"github.com/ModChain/zanolib/zanocrypto"
 )
 
 func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
@@ -61,8 +62,78 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 			prev = val
 			vin.KeyOffsets = append(vin.KeyOffsets, zanobase.VariantFor(cur))
 		}
+		//realOut := src.Outputs[src.RealOutput]
+		//RealOutTxKey               Value256 // crypto::public_key
+		//RealOutAmountBlindingMask  Value256 // crypto::scalar_t
+		//RealOutAssetIdBlindingMask Value256 // crypto::scalar_t
+		//RealOutInTxIndex           uint64   // size_t, index in transaction outputs vector
 		tx.Vin = append(tx.Vin, zanobase.VariantFor(vin))
 	}
 
 	return res, nil
+}
+
+// Returns ephemeralSec [32]byte, ephemeralPub [32]byte, keyImage [32]byte, error
+func ephemeralDerive(
+	spendPrivBytes [32]byte,
+	realOutTxKey [32]byte,
+	realOutInTxIndex uint64,
+) ([32]byte, [32]byte, [32]byte, error) {
+
+	var ephemeralSec [32]byte
+	var ephemeralPub [32]byte
+	var keyImage [32]byte
+
+	// 1) Parse our main private spend key into an edwards25519 scalar (32 bytes).
+	//    Typically, we can just keep it as-is. But we often want it reduced mod l.
+	//    This library's "ScReduce" can ensure it is in range.
+	edwards25519.ScReduce32(&spendPrivBytes, &spendPrivBytes) // in-place is okay
+
+	// 2) Parse realOutTxKey into an ExtendedGroupElement
+	p := new(edwards25519.ExtendedGroupElement)
+	ok := p.FromBytes(&realOutTxKey)
+	if !ok {
+		return ephemeralSec, ephemeralPub, keyImage, fmt.Errorf("invalid realOutTxKey: cannot decode extended group element")
+	}
+
+	// 3) ephemeralPoint = realOutTxKey * spendPriv
+	//    We can do that by using GeDoubleScalarMultVartime(...) with b=0
+	//    => ephemeralPoint = a*A + b*B = spendPriv * p + 0 * B
+	var ephemeralPoint edwards25519.ProjectiveGroupElement
+	var zero [32]byte // b=0
+	edwards25519.GeDoubleScalarMultVartime(&ephemeralPoint, &spendPrivBytes, p, &zero)
+
+	// Convert ephemeralPoint (ProjectiveGroupElement) to bytes
+	var ephemeralPointBytes [32]byte
+	ephemeralPoint.ToBytes(&ephemeralPointBytes)
+
+	// 4) ephemeralSec = HashToScalar( ephemeralPointBytes || realOutInTxIndex )
+	//    We'll define hashToScalar below
+	ephemeralSec = zanocrypto.HashToScalar(ephemeralPointBytes[:]) // FIXME append(ephemeralPointBytes[:], realOutInTxIndex))
+
+	// 5) ephemeralPub = ephemeralSec * G
+	//    G is the base point. We can do:
+	var ephemeralPubPoint edwards25519.ExtendedGroupElement
+	edwards25519.GeScalarMultBase(&ephemeralPubPoint, &ephemeralSec)
+	ephemeralPubPoint.ToBytes(&ephemeralPub)
+	ephemeralPubObj, err := edwards25519.ParsePubKey(ephemeralPub[:])
+	if err != nil {
+		return ephemeralSec, ephemeralPub, keyImage, err
+	}
+
+	// 6) keyImage = ephemeralSec * Hp(ephemeralPub)
+	//    We need hashToPoint(ephemeralPub), which returns an ExtendedGroupElement
+	HpPoint, err := zanocrypto.HashToEC(ephemeralPubObj)
+	if err != nil {
+		return ephemeralSec, ephemeralPub, keyImage, err
+	}
+
+	// Multiply ephemeralSec * HpPoint => keyImage
+	// We can do that with "GeDoubleScalarMultVartime" again, or a simpler path:
+	var keyImageProjective edwards25519.ProjectiveGroupElement
+	edwards25519.GeDoubleScalarMultVartime(&keyImageProjective, &ephemeralSec, HpPoint, &zero)
+
+	keyImageProjective.ToBytes(&keyImage)
+
+	return ephemeralSec, ephemeralPub, keyImage, nil
 }
