@@ -1,9 +1,11 @@
 package zanocrypto
 
 import (
+	"encoding/binary"
 	"errors"
 
 	"github.com/ModChain/edwards25519"
+	"golang.org/x/crypto/blake2b"
 )
 
 func GenerateKeyDerivation(pubKey, secKey [32]byte) ([32]byte, error) {
@@ -81,4 +83,18 @@ func GenerateKeyDerivation(pubKey, secKey [32]byte) ([32]byte, error) {
 
 	// Return the derivation and success
 	return derivation, nil
+}
+
+func DerivationHint(derivation []byte) uint16 {
+	// Compute 32-byte blake2b hash
+	hash := blake2b.Sum256(derivation)
+
+	// Interpret the hash as an array of 16 uint16 values in little-endian order,
+	// XOR them all together, and return the result.
+	var result uint16 = binary.LittleEndian.Uint16(hash[0:2])
+	for i := 1; i < 16; i++ {
+		result ^= binary.LittleEndian.Uint16(hash[i*2 : (i+1)*2])
+	}
+
+	return result
 }

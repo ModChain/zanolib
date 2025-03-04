@@ -24,3 +24,11 @@ func (v Value256) String() string {
 func (v Value256) MarshalJSON() ([]byte, error) {
 	return json.Marshal(v.String())
 }
+
+func (v Value256) B32() [32]byte {
+	return [32]byte(v)
+}
+
+func (v *Value256) PB32() *[32]byte {
+	return (*[32]byte)(v)
+}

@@ -2,6 +2,7 @@ package zanolib
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"slices"
@@ -60,6 +61,8 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 	// use ftp.Sources
 	for _, src := range ftp.Sources {
 		vin := &zanobase.TxInZcInput{}
+		realOut := src.Outputs[src.RealOutput]
+
 		var prev uint64
 		for _, out := range src.Outputs {
 			// generate_key_image_helper(sender_account_keys, src_entr.real_out_tx_key, src_entr.real_output_in_tx_index, in_context.in_ephemeral, img))
@@ -98,7 +101,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 			return nil, err
 		}
 		// in_context.in_ephemeral.pub == in_context.outputs[in_context.real_out_index].stealth_address
-		if !bytes.Equal(in_e_pub[:], src.Outputs[src.RealOutput].StealthAddress[:]) {
+		if !bytes.Equal(in_e_pub[:], realOut.StealthAddress[:]) {
 			return nil, errors.New("derived public key missmatch with output public key!")
 		}
 		// key image
@@ -108,7 +111,6 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 			return nil, err
 		}
 		vin.KeyImage = keyImage
-		//realOut := src.Outputs[src.RealOutput]
 		//RealOutTxKey               Value256 // crypto::public_key
 		//RealOutAmountBlindingMask  Value256 // crypto::scalar_t
 		//RealOutAssetIdBlindingMask Value256 // crypto::scalar_t
@@ -116,14 +118,106 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		tx.Vin = append(tx.Vin, zanobase.VariantFor(vin))
 	}
 
+	// TODO shuffle
+	indices := make([]int, len(ftp.PreparedDestinations))
+	for i := range indices {
+		indices[i] = i
+	}
+
+	hints := make(map[uint16]bool)
+
 	// prepared outs
-	for _, dst := range ftp.PreparedDestinations {
+	for _, i := range indices {
+		outputIndex := len(tx.Vout)
+		dst := ftp.PreparedDestinations[i]
+		// derivation = (crypto::scalar_t(tx_sec_key) * crypto::point_t(apa.view_public_key)).modify_mul8().to_public_key(); // d = 8 * r * V
+		derivation, err := zanocrypto.GenerateKeyDerivation(dst.Addr[0].ViewKey, res.OneTimeKey)
+		if err != nil {
+			return nil, err
+		}
+
+		// store derivation hint into the tx
+		// TODO do not insert if duplicate
+		hint := zanocrypto.DerivationHint(derivation[:])
+		hints[hint] = true
+
+		// compute scalar for derivation
+		// crypto::derivation_to_scalar((const crypto::key_derivation&)derivation, output_index, h.as_secret_key()); // h = Hs(8 * r * V, i)
+		scalar := zanocrypto.HashToScalar(slices.Concat(derivation[:], zanobase.Varint(outputIndex).Bytes()))
+
+		// 1. Compute H = h * G
+		var H edwards25519.ExtendedGroupElement
+		edwards25519.GeScalarMultBase(&H, &scalar)
+
+		var P edwards25519.ExtendedGroupElement
+		ok := P.FromBytes(dst.Addr[0].SpendKey.PB32())
+		if !ok {
+			return nil, errors.New("invalid public key for recipient")
+		}
+
+		// 3. Add the two points: R = H + P
+		var cachedP edwards25519.CachedGroupElement
+		P.ToCached(&cachedP)
+
+		var R edwards25519.CompletedGroupElement
+		edwards25519.GeAdd(&R, &H, &cachedP)
+
+		// 4. Convert R to an ExtendedGroupElement
+		var RExtended edwards25519.ExtendedGroupElement
+		R.ToExtended(&RExtended)
+		// 5. Convert back to a 32-byte compressed public key
+		var stealthAddress [32]byte
+		RExtended.ToBytes(&stealthAddress)
+
+		// ConcealingPoint
+		var concealingPoint [32]byte
+		concealingPoint = zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_CONCEALING_POINT__\x00"), scalar[:]))
+
+		var V edwards25519.ExtendedGroupElement
+		if !V.FromBytes(dst.Addr[0].ViewKey.PB32()) {
+			return nil, errors.New("invalid view key for recipient")
+		}
+
+		// multiply
+		var Qproj edwards25519.ProjectiveGroupElement
+		var ZeroSc [32]byte
+		edwards25519.GeDoubleScalarMultVartime(
+			&Qproj,
+			&concealingPoint,
+			&V,
+			&ZeroSc, // b=0
+		)
+		Qproj.ToBytes(&concealingPoint)
+
+		amountMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_MASK_______\x00"), scalar[:]))
+
+		//Amount          uint64
+		//Addr            []*AccountPublicAddr // account_public_address; destination address, in case of 1 address - txout_to_key, in case of more - txout_multisig
+		//MinimumSigs     uint64               // if txout_multisig: minimum signatures that are required to spend this output (minimum_sigs <= addr.size())  IF txout_to_key - not used
+		//UnlockTime      uint64               //
+		//AssetId         Value256             // not blinded, not premultiplied
+		//Flags           uint64               // set of flags (see tx_destination_entry_flags)
 		vout := &zanobase.TxOutZarcanium{
+			StealthAddress:  stealthAddress,
+			ConcealingPoint: concealingPoint,
 			BlindedAssetId:  dst.AssetId,
-			EncryptedAmount: dst.Amount, // FIXME
+			EncryptedAmount: dst.Amount ^ binary.LittleEndian.Uint64(amountMask[:8]),
+		}
+		if dst.Addr[0].Flags&1 == 1 {
+			vout.MixAttr = 1
 		}
 
 		tx.Vout = append(tx.Vout, zanobase.VariantFor(vout))
+	}
+
+	hintsArray := make([]uint16, 0, len(hints))
+	for hint := range hints {
+		hintsArray = append(hintsArray, hint)
+	}
+	slices.Sort(hintsArray)
+
+	for _, hint := range hintsArray {
+		tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagDerivationHint, Value: []byte{byte(hint & 0xff), byte((hint >> 8) & 0xff)}})
 	}
 
 	return res, nil
