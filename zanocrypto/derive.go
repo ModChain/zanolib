@@ -39,3 +39,16 @@ func DerivePublicKey(derivation [32]byte, outputIndex uint64, basePublic *[32]by
 
 	return &res, nil
 }
+
+func DeriveSecretKey(derivation [32]byte, outputIndex uint64, baseSecret *[32]byte) (*[32]byte, error) {
+	// derivation_to_scalar basically concats derivation and varint(outputIndex)
+	scalar := HashToScalar(slices.Concat(derivation[:], zanobase.Varint(outputIndex).Bytes()))
+
+	var scOne [32]byte
+	var res [32]byte
+	scOne[0] = 1
+
+	edwards25519.ScMulAdd(&res, &scalar, &scOne, baseSecret)
+
+	return &res, nil
+}
