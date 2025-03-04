@@ -2,7 +2,6 @@ package zanolib
 
 import (
 	"bytes"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"slices"
@@ -12,7 +11,7 @@ import (
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
-func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
+func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
 	if !bytes.Equal(ftp.SpendPubKey[:], w.SpendPubKey.Serialize()) {
 		return nil, errors.New("spend key does not match")
 	}
@@ -35,9 +34,16 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 	// currency::construct_tx(m_account.get_keys(), ftp, result);
 	// @ src/currency_core/currency_format_utils.cpp 2372
 
-	// FIXME one time key hardcoded
 	// construct tx uses some method to get an intial value?
-	oneTimeKey := must(hex.DecodeString("955f1e1fc3262ba2f307b64e60a960e18ff1072300dbf297114739fabb000204"))
+	if oneTimeKey == nil {
+		var err error
+		priv, err := edwards25519.GeneratePrivateKey()
+		if err != nil {
+			return nil, err
+		}
+		oneTimeKey = priv.Serialize()
+		slices.Reverse(oneTimeKey)
+	}
 	copy(res.OneTimeKey[:], oneTimeKey)
 	slices.Reverse(oneTimeKey)
 	priv, pub, err := edwards25519.PrivKeyFromScalar(oneTimeKey)
@@ -108,6 +114,16 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 		//RealOutAssetIdBlindingMask Value256 // crypto::scalar_t
 		//RealOutInTxIndex           uint64   // size_t, index in transaction outputs vector
 		tx.Vin = append(tx.Vin, zanobase.VariantFor(vin))
+	}
+
+	// prepared outs
+	for _, dst := range ftp.PreparedDestinations {
+		vout := &zanobase.TxOutZarcanium{
+			BlindedAssetId:  dst.AssetId,
+			EncryptedAmount: dst.Amount, // FIXME
+		}
+
+		tx.Vout = append(tx.Vout, zanobase.VariantFor(vout))
 	}
 
 	return res, nil
