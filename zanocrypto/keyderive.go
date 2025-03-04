@@ -1,8 +1,12 @@
 package zanocrypto
 
-import "github.com/ModChain/edwards25519"
+import (
+	"errors"
 
-func GenerateKeyDerivation(pubKey, secKey [32]byte) ([32]byte, bool) {
+	"github.com/ModChain/edwards25519"
+)
+
+func GenerateKeyDerivation(pubKey, secKey [32]byte) ([32]byte, error) {
 	var derivation [32]byte
 
 	// --------------------------------------------------------------------------
@@ -30,7 +34,7 @@ func GenerateKeyDerivation(pubKey, secKey [32]byte) ([32]byte, bool) {
 	var point edwards25519.ExtendedGroupElement
 	if !point.FromBytes(&pubKey) {
 		// This means the pubKey was not a valid point
-		return derivation, false
+		return derivation, errors.New("GenerateKeyDerivation: pubkey is not a valid point")
 	}
 
 	// --------------------------------------------------------------------------
@@ -76,5 +80,5 @@ func GenerateKeyDerivation(pubKey, secKey [32]byte) ([32]byte, bool) {
 	p2.ToBytes(&derivation)
 
 	// Return the derivation and success
-	return derivation, true
+	return derivation, nil
 }

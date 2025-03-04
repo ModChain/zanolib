@@ -290,13 +290,13 @@ func TestGenerateKeyDerivation(t *testing.T) {
 		copy(a[:], must(hex.DecodeString(vecA[0])))
 		copy(b[:], must(hex.DecodeString(vecA[1])))
 
-		res, ok := zanocrypto.GenerateKeyDerivation(a, b)
-		if !ok {
+		res, err := zanocrypto.GenerateKeyDerivation(a, b)
+		if err != nil {
 			if vecA[2] == "false" {
 				// good
 				continue
 			}
-			t.Errorf("GenerateKeyDerivation failed: %v", ok)
+			t.Errorf("GenerateKeyDerivation failed: %s", err)
 			continue
 		}
 		if vecA[2] == "false" {
