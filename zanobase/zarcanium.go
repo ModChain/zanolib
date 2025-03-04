@@ -1,5 +1,5 @@
 package zanobase
 
 type ZarcaniumTxDataV1 struct {
-	Fee uint64
+	Fee uint64 `json:"fee"`
 }

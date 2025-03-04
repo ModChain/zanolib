@@ -57,11 +57,51 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 		var prev uint64
 		for _, out := range src.Outputs {
 			// generate_key_image_helper(sender_account_keys, src_entr.real_out_tx_key, src_entr.real_output_in_tx_index, in_context.in_ephemeral, img))
+			// → derive_ephemeral_key_helper(ack, tx_public_key, real_output_index, in_ephemeral)
+			//   → crypto::generate_key_derivation(tx_public_key, ack.view_secret_key, recv_derivation)
+			// → crypto::generate_key_image(in_ephemeral.pub, in_ephemeral.sec, ki)
 			val := zanobase.VariantAs[uint64](out.OutReference)
 			cur := val - prev
 			prev = val
 			vin.KeyOffsets = append(vin.KeyOffsets, zanobase.VariantFor(cur))
 		}
+
+		// Derive ephemeral
+		var realOutTxKey [32]byte
+		copy(realOutTxKey[:], src.RealOutTxKey[:])
+
+		// generate_key_image_helper(sender_account_keys, src_entr.real_out_tx_key,
+		var ackViewSecretKey [32]byte
+		copy(ackViewSecretKey[:], w.ViewPrivKey.Serialize())
+		slices.Reverse(ackViewSecretKey[:])
+		derivation, err := zanocrypto.GenerateKeyDerivation(realOutTxKey, ackViewSecretKey)
+		if err != nil {
+			return nil, err
+		}
+		var ackSpendPublic [32]byte
+		copy(ackSpendPublic[:], w.SpendPubKey.Serialize())
+		in_e_pub, err := zanocrypto.DerivePublicKey(derivation, src.RealOutInTxIndex, &ackSpendPublic)
+		if err != nil {
+			return nil, err
+		}
+		var ackSpendPriv [32]byte
+		copy(ackSpendPriv[:], w.SpendPrivKey.Serialize())
+		slices.Reverse(ackSpendPriv[:])
+		in_e_sec, err := zanocrypto.DeriveSecretKey(derivation, src.RealOutInTxIndex, &ackSpendPriv)
+		if err != nil {
+			return nil, err
+		}
+		// in_context.in_ephemeral.pub == in_context.outputs[in_context.real_out_index].stealth_address
+		if !bytes.Equal(in_e_pub[:], src.Outputs[src.RealOutput].StealthAddress[:]) {
+			return nil, errors.New("derived public key missmatch with output public key!")
+		}
+		// key image
+		//slices.Reverse(in_e_sec[:])
+		keyImage, err := zanocrypto.ComputeKeyImage(in_e_sec, in_e_pub)
+		if err != nil {
+			return nil, err
+		}
+		vin.KeyImage = keyImage
 		//realOut := src.Outputs[src.RealOutput]
 		//RealOutTxKey               Value256 // crypto::public_key
 		//RealOutAmountBlindingMask  Value256 // crypto::scalar_t
@@ -71,69 +111,4 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam) (*FinalizedTx, error) {
 	}
 
 	return res, nil
-}
-
-// Returns ephemeralSec [32]byte, ephemeralPub [32]byte, keyImage [32]byte, error
-func ephemeralDerive(
-	spendPrivBytes [32]byte,
-	realOutTxKey [32]byte,
-	realOutInTxIndex uint64,
-) ([32]byte, [32]byte, [32]byte, error) {
-
-	var ephemeralSec [32]byte
-	var ephemeralPub [32]byte
-	var keyImage [32]byte
-
-	// 1) Parse our main private spend key into an edwards25519 scalar (32 bytes).
-	//    Typically, we can just keep it as-is. But we often want it reduced mod l.
-	//    This library's "ScReduce" can ensure it is in range.
-	edwards25519.ScReduce32(&spendPrivBytes, &spendPrivBytes) // in-place is okay
-
-	// 2) Parse realOutTxKey into an ExtendedGroupElement
-	p := new(edwards25519.ExtendedGroupElement)
-	ok := p.FromBytes(&realOutTxKey)
-	if !ok {
-		return ephemeralSec, ephemeralPub, keyImage, fmt.Errorf("invalid realOutTxKey: cannot decode extended group element")
-	}
-
-	// 3) ephemeralPoint = realOutTxKey * spendPriv
-	//    We can do that by using GeDoubleScalarMultVartime(...) with b=0
-	//    => ephemeralPoint = a*A + b*B = spendPriv * p + 0 * B
-	var ephemeralPoint edwards25519.ProjectiveGroupElement
-	var zero [32]byte // b=0
-	edwards25519.GeDoubleScalarMultVartime(&ephemeralPoint, &spendPrivBytes, p, &zero)
-
-	// Convert ephemeralPoint (ProjectiveGroupElement) to bytes
-	var ephemeralPointBytes [32]byte
-	ephemeralPoint.ToBytes(&ephemeralPointBytes)
-
-	// 4) ephemeralSec = HashToScalar( ephemeralPointBytes || realOutInTxIndex )
-	//    We'll define hashToScalar below
-	ephemeralSec = zanocrypto.HashToScalar(ephemeralPointBytes[:]) // FIXME append(ephemeralPointBytes[:], realOutInTxIndex))
-
-	// 5) ephemeralPub = ephemeralSec * G
-	//    G is the base point. We can do:
-	var ephemeralPubPoint edwards25519.ExtendedGroupElement
-	edwards25519.GeScalarMultBase(&ephemeralPubPoint, &ephemeralSec)
-	ephemeralPubPoint.ToBytes(&ephemeralPub)
-	ephemeralPubObj, err := edwards25519.ParsePubKey(ephemeralPub[:])
-	if err != nil {
-		return ephemeralSec, ephemeralPub, keyImage, err
-	}
-
-	// 6) keyImage = ephemeralSec * Hp(ephemeralPub)
-	//    We need hashToPoint(ephemeralPub), which returns an ExtendedGroupElement
-	HpPoint, err := zanocrypto.HashToEC(ephemeralPubObj)
-	if err != nil {
-		return ephemeralSec, ephemeralPub, keyImage, err
-	}
-
-	// Multiply ephemeralSec * HpPoint => keyImage
-	// We can do that with "GeDoubleScalarMultVartime" again, or a simpler path:
-	var keyImageProjective edwards25519.ProjectiveGroupElement
-	edwards25519.GeDoubleScalarMultVartime(&keyImageProjective, &ephemeralSec, HpPoint, &zero)
-
-	keyImageProjective.ToBytes(&keyImage)
-
-	return ephemeralSec, ephemeralPub, keyImage, nil
 }

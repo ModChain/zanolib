@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ModChain/edwards25519"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
@@ -269,14 +268,11 @@ func TestHashToEC(t *testing.T) {
 		"31b8e37d01fd5669de4ebf78889d749bc44ffe997186ace56f1fb3e60b8742d2 776366b44170efb130a5045597db5675c6c0b56f3def84863c6b6358aa8dcf40",
 	}
 
+	var pub [32]byte
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
-		key, err := edwards25519.ParsePubKey(must(hex.DecodeString(vecA[0])))
-		if err != nil {
-			t.Errorf("Failed to parse key: %s", err)
-			continue
-		}
-		v, err := zanocrypto.HashToEC(key)
+		copy(pub[:], must(hex.DecodeString(vecA[0])))
+		v, err := zanocrypto.HashToEC(&pub)
 		if err != nil {
 			t.Errorf("HashToEC failed: %s", err)
 			continue

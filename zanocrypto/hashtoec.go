@@ -1,19 +1,13 @@
 package zanocrypto
 
 import (
-	"fmt"
-
 	"github.com/ModChain/edwards25519"
 	"golang.org/x/crypto/sha3"
 )
 
-func HashToEC(pub *edwards25519.PublicKey) (*edwards25519.ExtendedGroupElement, error) {
-	pubBytes := pub.Serialize() // Ensure this is exactly 32 bytes if you’re emulating Monero
-	if len(pubBytes) != 32 {
-		return nil, fmt.Errorf("public key must be 32 bytes, got %d", len(pubBytes))
-	}
+func HashToEC(pubBytes *[32]byte) (*edwards25519.ExtendedGroupElement, error) {
 	hash := sha3.NewLegacyKeccak256()
-	hash.Write(pubBytes)
+	hash.Write(pubBytes[:])
 	hashed := hash.Sum(nil)
 	var h [32]byte
 	copy(h[:], hashed)

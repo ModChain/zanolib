@@ -2,11 +2,9 @@ package zanocrypto_test
 
 import (
 	"encoding/hex"
-	"slices"
 	"strings"
 	"testing"
 
-	"github.com/ModChain/edwards25519"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
@@ -270,24 +268,14 @@ func TestKeyImage(t *testing.T) {
 		"7427c053014583ecd07e81e1c917906c381af54a7ecaba8498225518a156bae9 d9e07405029a8bd4ba75dbda93756228e18674e3138d2f7b2e7796ee7430ee01 1253d396a6e7a2bff50c1fdf54bb90157727fa20466fac74e9138355b17092e9",
 	}
 
+	var pub, sec [32]byte
+
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
-		// public_key &pub, const secret_key &sec, key_image &image
-		// → ComputeKeyImage(spendPriv *edwards25519.PrivateKey, spendPub *edwards25519.PublicKey) ([32]byte, error)
-		pub, err := edwards25519.ParsePubKey(must(hex.DecodeString(vecA[0])))
-		if err != nil {
-			t.Errorf("Failed to parse key: %s", err)
-			continue
-		}
-		privBuf := must(hex.DecodeString(vecA[1]))
-		slices.Reverse(privBuf) // because little endian
-		priv, _, err := edwards25519.PrivKeyFromScalar(privBuf)
-		if err != nil {
-			t.Errorf("Failed to parse key: %s", err)
-			continue
-		}
+		copy(pub[:], must(hex.DecodeString(vecA[0])))
+		copy(sec[:], must(hex.DecodeString(vecA[1])))
 
-		res, err := zanocrypto.ComputeKeyImage(priv, pub)
+		res, err := zanocrypto.ComputeKeyImage(&sec, &pub)
 		if err != nil {
 			t.Errorf("ComputeKeyImage error: %s", err)
 			continue

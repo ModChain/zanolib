@@ -1,13 +1,11 @@
 package zanocrypto
 
 import (
-	"slices"
-
 	"github.com/ModChain/edwards25519"
 )
 
 // ComputeKeyImage computes the key image for a given spend key.
-func ComputeKeyImage(spendPriv *edwards25519.PrivateKey, spendPub *edwards25519.PublicKey) ([32]byte, error) {
+func ComputeKeyImage(spendPriv *[32]byte, spendPub *[32]byte) ([32]byte, error) {
 	var image [32]byte
 	// hash_to_ec(pub, point);
 	point, err := HashToEC(spendPub)
@@ -15,14 +13,10 @@ func ComputeKeyImage(spendPriv *edwards25519.PrivateKey, spendPub *edwards25519.
 		return image, err
 	}
 
-	var secBytes [32]byte
-	copy(secBytes[:], spendPriv.Serialize())
-	slices.Reverse(secBytes[:])
-
 	// ge_scalarmult(&point2, &sec, &point);
 	var zero [32]byte
 	var proj edwards25519.ProjectiveGroupElement
-	edwards25519.GeDoubleScalarMultVartime(&proj, &secBytes, point, &zero)
+	edwards25519.GeDoubleScalarMultVartime(&proj, spendPriv, point, &zero)
 
 	// 4) Serialize the ProjectiveGroupElement to 32 bytes (equivalent to ge_tobytes).
 	proj.ToBytes(&image)
