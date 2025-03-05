@@ -5,6 +5,18 @@ import "github.com/ModChain/edwards25519"
 // Global constants
 
 var (
+	C_point_0 = &edwards25519.ExtendedGroupElement{
+		X: edwards25519.FieldElement{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Y: edwards25519.FieldElement{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		Z: edwards25519.FieldElement{1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+		T: edwards25519.FieldElement{0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+	}
+	C_point_G = &edwards25519.ExtendedGroupElement{
+		X: edwards25519.FieldElement{25485296, 5318399, 8791791, -8299916, -14349720, 6939349, -3324311, -7717049, 7287234, -6577708},
+		Y: edwards25519.FieldElement{-758052, -1832720, 13046421, -4857925, 6576754, 14371947, -13139572, 6845540, -2198883, -4003719},
+		Z: edwards25519.FieldElement{-947565, 6097708, -469190, 10704810, -8556274, -15589498, -16424464, -16608899, 14028613, -5004649},
+		T: edwards25519.FieldElement{6966464, -2456167, 7033433, 6781840, 28785542, 12262365, -2659449, 13959020, -21013759, -5262166},
+	}
 	C_point_H = &edwards25519.ExtendedGroupElement{
 		X: edwards25519.FieldElement{20574939, 16670001, -29137604, 14614582, 24883426, 3503293, 2667523, 420631, 2267646, -4769165},
 		Y: edwards25519.FieldElement{-11764015, -12206428, -14187565, -2328122, -16242653, -788308, -12595746, -8251557, -10110987, 853396},

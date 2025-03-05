@@ -20,7 +20,7 @@ type FinalizeTxParam struct {
 	MultisigId           zanobase.Value256    // crypto::hash
 	Sources              []*zanobase.TxSource // currency::tx_source_entry
 	SelectedTransfers    []zanobase.Varint    // not sure why, but this is encoded as "01 00" in the bytestream
-	PreparedDestinations []*zanobase.TxDest   // currency::tx_destination_entry
+	PreparedDestinations []*TxDest            // currency::tx_destination_entry
 	ExpirationTime       uint64
 	SpendPubKey          zanobase.Value256 // only for validations
 	TxVersion            uint64

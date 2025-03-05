@@ -4,6 +4,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+
+	"github.com/ModChain/edwards25519"
 )
 
 type Value256 [32]byte
@@ -31,4 +33,12 @@ func (v Value256) B32() [32]byte {
 
 func (v *Value256) PB32() *[32]byte {
 	return (*[32]byte)(v)
+}
+
+func (v *Value256) ToExtended() *edwards25519.ExtendedGroupElement {
+	var ex edwards25519.ExtendedGroupElement
+	if !ex.FromBytes(v.PB32()) {
+		return nil
+	}
+	return &ex
 }
