@@ -5,11 +5,12 @@ go 1.23.1
 require (
 	github.com/KarpelesLab/rc v1.0.0
 	github.com/ModChain/base58 v1.1.0
-	github.com/ModChain/edwards25519 v1.1.2
+	github.com/ModChain/edwards25519 v1.1.4
 	golang.org/x/crypto v0.35.0
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/KarpelesLab/pjson v0.1.7 // indirect
 	github.com/KarpelesLab/typutil v0.2.26 // indirect
 	github.com/ModChain/ethrpc v0.2.6 // indirect

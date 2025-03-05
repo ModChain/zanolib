@@ -191,18 +191,82 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 		amountMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_MASK_______\x00"), scalar[:]))
 
-		//Amount          uint64
-		//Addr            []*AccountPublicAddr // account_public_address; destination address, in case of 1 address - txout_to_key, in case of more - txout_multisig
-		//MinimumSigs     uint64               // if txout_multisig: minimum signatures that are required to spend this output (minimum_sigs <= addr.size())  IF txout_to_key - not used
+		// zanocrypto.HashToScalar will also reduce
+		assetBlindingMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_ASSET_BLIND_MASK__\x00"), scalar[:]))
+
+		// 1) Decompress dst.AssetId (Q) to an ExtendedGroupElement
+		var Q edwards25519.ExtendedGroupElement
+		if !Q.FromBytes(dst.AssetId.PB32()) {
+			panic("invalid compressed asset_id point")
+		}
+
+		// 3) Multiply R = assetBlindingMask * X
+		var Rproj edwards25519.ProjectiveGroupElement
+		edwards25519.GeDoubleScalarMultVartime(
+			&Rproj,
+			&assetBlindingMask,
+			zanocrypto.C_point_X,
+			&ZeroSc, // second scalar = 0
+		)
+
+		// Convert Rproj -> Extended
+		var Rext edwards25519.ExtendedGroupElement
+		{
+			var tmp [32]byte
+			Rproj.ToBytes(&tmp)
+			if !Rext.FromBytes(&tmp) {
+				panic("unexpected R decomposition error")
+			}
+		}
+
+		// 4) S = Q + R
+		var Qcached edwards25519.CachedGroupElement
+		Q.ToCached(&Qcached)
+
+		var Scomp edwards25519.CompletedGroupElement
+		edwards25519.GeAdd(&Scomp, &Rext, &Qcached)
+
+		var Sext edwards25519.ExtendedGroupElement
+		Scomp.ToExtended(&Sext)
+
+		// 1) Convert S to Projective
+		var Sproj edwards25519.ProjectiveGroupElement
+		Sext.ToProjective(&Sproj)
+
+		// 2) Multiply by (1/8)
+		var Tproj edwards25519.ProjectiveGroupElement
+		edwards25519.GeDoubleScalarMultVartime(
+			&Tproj,
+			&zanocrypto.Sc1div8,
+			&Sext,
+			&ZeroSc, // zero
+		)
+
+		// 3) Convert Tproj -> Extended
+		var Text edwards25519.ExtendedGroupElement
+		{
+			var tmp [32]byte
+			Tproj.ToBytes(&tmp)
+			if !Text.FromBytes(&tmp) {
+				panic("unexpected T decomposition error")
+			}
+		}
+
+		// 4) Finally compress to bytes
+		var blindedAssetId [32]byte
+		Text.ToBytes(&blindedAssetId)
+
 		//UnlockTime      uint64               //
 		//AssetId         Value256             // not blinded, not premultiplied
 		//Flags           uint64               // set of flags (see tx_destination_entry_flags)
 		vout := &zanobase.TxOutZarcanium{
 			StealthAddress:  stealthAddress,
 			ConcealingPoint: concealingPoint,
-			BlindedAssetId:  dst.AssetId,
+			BlindedAssetId:  blindedAssetId,
 			EncryptedAmount: dst.Amount ^ binary.LittleEndian.Uint64(amountMask[:8]),
 		}
+
+		// if audit address, set vout.MixAttr=1
 		if dst.Addr[0].Flags&1 == 1 {
 			vout.MixAttr = 1
 		}
