@@ -15,3 +15,9 @@ type CLSAG_Sig struct {
 	K1  Value256   // public_key auxiliary key image for layer 1 (G)
 	K2  Value256   // public_key auxiliary key image for layer 2 (X)
 }
+
+type CLSAG_GGX_Input struct {
+	BlindedAssetId   Value256
+	StealthAddress   Value256
+	AmountCommitment Value256
+}

@@ -16,11 +16,21 @@ var (
 )
 
 const (
-	TagGen               Tag = 0
-	TagDerivationHint    Tag = 11
-	TagPubKey            Tag = 22
-	TagEtcTxFlags16      Tag = 23
-	TagZarcaniumTxDataV1 Tag = 39
+	TagGen                    Tag = 0
+	TagDerivationHint         Tag = 11
+	TagPubKey                 Tag = 22
+	TagEtcTxFlags16           Tag = 23
+	TagDeriveXor              Tag = 24
+	TagRefById                Tag = 25
+	TagUint64                 Tag = 26
+	TagUint32                 Tag = 28
+	TagTxinZcInput            Tag = 37
+	TagTxOutZarcanum          Tag = 38
+	TagZarcaniumTxDataV1      Tag = 39
+	TagZCSig                  Tag = 43
+	TagZcAssetSurjectionProof Tag = 46
+	TagZcOutsRangeProof       Tag = 47
+	TagZcBalanceProof         Tag = 48
 )
 
 func defTag[T any](tag Tag, name string) {
@@ -39,17 +49,17 @@ func init() {
 	defTag[[]byte](TagDerivationHint, "derivation_hint")
 	defTag[Value256](TagPubKey, "pub_key")
 	defTag[uint16](TagEtcTxFlags16, "etc_tx_flags16")
-	defTag[uint16](24, "derive_xor")
-	defTag[*RefById](25, "ref_by_id")
-	defTag[uint64](26, "uint64_t")
-	defTag[uint32](28, "uint32_t")
-	defTag[*TxInZcInput](37, "txin_zc_input")
-	defTag[*TxOutZarcanium](38, "tx_out_zarcanum")
-	defTag[*ZarcaniumTxDataV1](39, "zarcanum_tx_data_v1")
-	defTag[*ZCSig](43, "ZC_sig")
-	defTag[*ZCAssetSurjectionProof](46, "zc_asset_surjection_proof")
-	defTag[*ZCOutsRangeProof](47, "zc_outs_range_proof")
-	defTag[*ZCBalanceProof](48, "zc_balance_proof")
+	defTag[uint16](TagDeriveXor, "derive_xor")
+	defTag[*RefById](TagRefById, "ref_by_id")
+	defTag[uint64](TagUint64, "uint64_t")
+	defTag[uint32](TagUint32, "uint32_t")
+	defTag[*TxInZcInput](TagTxinZcInput, "txin_zc_input")
+	defTag[*TxOutZarcanium](TagTxOutZarcanum, "tx_out_zarcanum")
+	defTag[*ZarcaniumTxDataV1](TagZarcaniumTxDataV1, "zarcanum_tx_data_v1")
+	defTag[*ZCSig](TagZCSig, "ZC_sig")
+	defTag[*ZCAssetSurjectionProof](TagZcAssetSurjectionProof, "zc_asset_surjection_proof")
+	defTag[*ZCOutsRangeProof](TagZcOutsRangeProof, "zc_outs_range_proof")
+	defTag[*ZCBalanceProof](TagZcBalanceProof, "zc_balance_proof")
 }
 
 func TagFor[T any]() Tag {

@@ -17,10 +17,10 @@ type FinalizeTxParam struct {
 	TxOutsAttr           uint8
 	Shuffle              bool
 	Flags                uint8
-	MultisigId           zanobase.Value256    // crypto::hash
-	Sources              []*zanobase.TxSource // currency::tx_source_entry
-	SelectedTransfers    []zanobase.Varint    // not sure why, but this is encoded as "01 00" in the bytestream
-	PreparedDestinations []*TxDest            // currency::tx_destination_entry
+	MultisigId           zanobase.Value256 // crypto::hash
+	Sources              []*TxSource       // currency::tx_source_entry
+	SelectedTransfers    []zanobase.Varint // not sure why, but this is encoded as "01 00" in the bytestream
+	PreparedDestinations []*TxDest         // currency::tx_destination_entry
 	ExpirationTime       uint64
 	SpendPubKey          zanobase.Value256 // only for validations
 	TxVersion            uint64

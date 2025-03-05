@@ -187,5 +187,15 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagZarcaniumTxDataV1, Value: &zanobase.ZarcaniumTxDataV1{Fee: totalIn - totalOut}})
 	}
 
+	// generate proofs and signatures
+	// (any changes made below should only affect the signatures/proofs and should not impact the prefix hash calculation)
+
+	for _, src := range ftp.Sources {
+		if src.IsZC() {
+			// r = generate_ZC_sig(tx_hash_for_signature, i_ + input_starter_index, source_entry, in_contexts[i_mapped], sender_account_keys, flags, gen_context, tx, i_ + 1 == sources.size(), separately_signed_tx_complete)
+			src.generateZCSig()
+		}
+	}
+
 	return res, nil
 }
