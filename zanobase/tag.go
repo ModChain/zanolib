@@ -16,10 +16,11 @@ var (
 )
 
 const (
-	TagGen            Tag = 0
-	TagDerivationHint Tag = 11
-	TagPubKey         Tag = 22
-	TagEtcTxFlags16   Tag = 23
+	TagGen               Tag = 0
+	TagDerivationHint    Tag = 11
+	TagPubKey            Tag = 22
+	TagEtcTxFlags16      Tag = 23
+	TagZarcaniumTxDataV1 Tag = 39
 )
 
 func defTag[T any](tag Tag, name string) {

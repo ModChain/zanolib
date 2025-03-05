@@ -158,7 +158,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 		// if audit address, set vout.MixAttr=1
 		if dst.Addr[0].Flags&1 == 1 {
-			vout.MixAttr = 1
+			vout.MixAttr = 1 // CURRENCY_TO_KEY_OUT_FORCED_NO_MIX
 		}
 
 		tx.Vout = append(tx.Vout, zanobase.VariantFor(vout))
@@ -172,6 +172,19 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	for _, hint := range hintsArray {
 		tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagDerivationHint, Value: []byte{byte(hint & 0xff), byte((hint >> 8) & 0xff)}})
+	}
+
+	// compute total in & total out, compute fee
+	var totalIn, totalOut uint64
+	for _, src := range ftp.Sources {
+		totalIn += src.Amount
+	}
+	for _, dst := range ftp.PreparedDestinations {
+		totalOut += dst.Amount
+	}
+	if totalIn > totalOut {
+		// add fee to extras
+		tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagZarcaniumTxDataV1, Value: &zanobase.ZarcaniumTxDataV1{Fee: totalIn - totalOut}})
 	}
 
 	return res, nil
