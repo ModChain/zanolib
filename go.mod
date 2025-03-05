@@ -5,7 +5,7 @@ go 1.23.1
 require (
 	github.com/KarpelesLab/rc v1.0.0
 	github.com/ModChain/base58 v1.1.0
-	github.com/ModChain/edwards25519 v1.1.4
+	github.com/ModChain/edwards25519 v1.1.5
 	golang.org/x/crypto v0.35.0
 )
 

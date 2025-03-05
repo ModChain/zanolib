@@ -189,19 +189,3 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	return res, nil
 }
-
-func projectiveToExtended(
-	p *edwards25519.ProjectiveGroupElement,
-	r *edwards25519.ExtendedGroupElement,
-) {
-	// Copy X, Y, Z
-	edwards25519.FeCopy(&r.X, &p.X)
-	edwards25519.FeCopy(&r.Y, &p.Y)
-	edwards25519.FeCopy(&r.Z, &p.Z)
-
-	// T = (X * Y) / Z
-	var XY, ZInv edwards25519.FieldElement
-	edwards25519.FeMul(&XY, &p.X, &p.Y)
-	edwards25519.FeInvert(&ZInv, &p.Z) // ZInv = 1/Z
-	edwards25519.FeMul(&r.T, &XY, &ZInv)
-}

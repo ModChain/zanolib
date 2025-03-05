@@ -132,7 +132,7 @@ func (dst *TxDest) BlindedAssetId(scalar *[32]byte) *zanobase.Value256 {
 
 	// 3) Convert Tproj -> Extended
 	var Text edwards25519.ExtendedGroupElement
-	projectiveToExtended(&Tproj, &Text)
+	Tproj.ToExtended(&Text)
 
 	// 4) Finally compress to bytes
 	var blindedAssetId zanobase.Value256
@@ -169,7 +169,7 @@ func (dst *TxDest) AmountCommitment(scalar *[32]byte) *zanobase.Value256 {
 
 	// convert projective -> extended
 	var PExt edwards25519.ExtendedGroupElement
-	projectiveToExtended(&PProj, &PExt)
+	PProj.ToExtended(&PExt)
 
 	// --- Q = mask*c_point_G ---
 	//     c_point_G is presumably an *ExtendedGroupElement*
@@ -178,7 +178,7 @@ func (dst *TxDest) AmountCommitment(scalar *[32]byte) *zanobase.Value256 {
 
 	// convert projective -> extended
 	var QExt edwards25519.ExtendedGroupElement
-	projectiveToExtended(&QProj, &QExt)
+	QProj.ToExtended(&QExt)
 
 	// --- R = P + Q ---
 	var RCompleted edwards25519.CompletedGroupElement
