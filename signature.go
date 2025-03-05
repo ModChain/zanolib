@@ -145,58 +145,12 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		// crypto::derivation_to_scalar((const crypto::key_derivation&)derivation, output_index, h.as_secret_key()); // h = Hs(8 * r * V, i)
 		scalar := zanocrypto.HashToScalar(slices.Concat(derivation[:], zanobase.Varint(outputIndex).Bytes()))
 
-		// 1. Compute H = h * G
-		var H edwards25519.ExtendedGroupElement
-		edwards25519.GeScalarMultBase(&H, &scalar)
-
-		var P edwards25519.ExtendedGroupElement
-		ok := P.FromBytes(dst.Addr[0].SpendKey.PB32())
-		if !ok {
-			return nil, errors.New("invalid public key for recipient")
-		}
-
-		// 3. Add the two points: R = H + P
-		var cachedP edwards25519.CachedGroupElement
-		P.ToCached(&cachedP)
-
-		var R edwards25519.CompletedGroupElement
-		edwards25519.GeAdd(&R, &H, &cachedP)
-
-		// 4. Convert R to an ExtendedGroupElement
-		var RExtended edwards25519.ExtendedGroupElement
-		R.ToExtended(&RExtended)
-		// 5. Convert back to a 32-byte compressed public key
-		var stealthAddress [32]byte
-		RExtended.ToBytes(&stealthAddress)
-
-		// ConcealingPoint
-		var concealingPoint [32]byte
-		concealingPoint = zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_CONCEALING_POINT__\x00"), scalar[:]))
-
-		var V edwards25519.ExtendedGroupElement
-		if !V.FromBytes(dst.Addr[0].ViewKey.PB32()) {
-			return nil, errors.New("invalid view key for recipient")
-		}
-
-		// multiply
-		var Qproj edwards25519.ProjectiveGroupElement
-		var ZeroSc [32]byte
-		edwards25519.GeDoubleScalarMultVartime(
-			&Qproj,
-			&concealingPoint,
-			&V,
-			&ZeroSc, // b=0
-		)
-		Qproj.ToBytes(&concealingPoint)
-
 		amountMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_MASK_______\x00"), scalar[:]))
 
 		//UnlockTime      uint64               //
-		//AssetId         Value256             // not blinded, not premultiplied
-		//Flags           uint64               // set of flags (see tx_destination_entry_flags)
 		vout := &zanobase.TxOutZarcanium{
-			StealthAddress:   stealthAddress,
-			ConcealingPoint:  concealingPoint,
+			StealthAddress:   *dst.StealthAddress(&scalar),
+			ConcealingPoint:  *dst.ConcealingPoint(&scalar),
 			BlindedAssetId:   *dst.BlindedAssetId(&scalar),
 			EncryptedAmount:  dst.Amount ^ binary.LittleEndian.Uint64(amountMask[:8]),
 			AmountCommitment: *dst.AmountCommitment(&scalar),

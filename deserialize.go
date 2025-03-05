@@ -77,6 +77,9 @@ func Deserialize(rx io.Reader, target any) error {
 	nf := t.NumField()
 	for i := 0; i < nf; i += 1 {
 		tf := t.Field(i)
+		if !tf.IsExported() {
+			continue
+		}
 		tag := tf.Tag.Get("epee")
 		err = subDeserialize(buf, obj.Field(i).Addr().Interface(), tag)
 		if err != nil {
