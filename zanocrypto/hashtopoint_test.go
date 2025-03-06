@@ -389,8 +389,8 @@ func TestHashToPoint(t *testing.T) {
 		copy(h[:], must(hex.DecodeString(vecA[0])))
 		b := zanocrypto.HashToPoint(&h)
 
-		if hex.EncodeToString(b[:]) != vecA[1] {
-			t.Errorf("Bad result for HashToPoint(%s)=%x instead of %s", vecA[0], b, vecA[1])
+		if hex.EncodeToString(b.Bytes()) != vecA[1] {
+			t.Errorf("Bad result for HashToPoint(%s)=%x instead of %s", vecA[0], b.Bytes(), vecA[1])
 		}
 	}
 }
