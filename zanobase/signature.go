@@ -2,8 +2,8 @@ package zanobase
 
 type ZCSig struct {
 	// ZC_sig
-	PseudoOutAmountCommitment Value256 // premultiplied by 1/8
-	PseudoOutBlindedAssetId   Value256 // premultiplied by 1/8
+	PseudoOutAmountCommitment *Point // premultiplied by 1/8
+	PseudoOutBlindedAssetId   *Point // premultiplied by 1/8
 	// crypto::CLSAG_GGX_signature_serialized clsags_ggx
 	GGX *CLSAG_Sig
 }

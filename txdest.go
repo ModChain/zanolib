@@ -20,12 +20,11 @@ type TxDest struct {
 	AmountToProvide uint64                        // amount money that provided by initial creator of tx, used with partially created transactions
 	UnlockTime      uint64                        //
 	HtlcOptions     *TxDestHtlcOut                // destination_option_htlc_out
-	AssetId         zanobase.Value256             // not blinded, not premultiplied
+	AssetId         *zanobase.Point               // not blinded, not premultiplied
 	Flags           uint64                        // set of flags (see tx_destination_entry_flags)
-	blindedAssetId  *edwards25519.Point           // intermediate value, used internally
 }
 
-func (dst *TxDest) StealthAddress(scalar *edwards25519.Scalar) *edwards25519.Point {
+func (dst *TxDest) StealthAddress(scalar *edwards25519.Scalar, ogc *zanobase.GenContext, i int) *edwards25519.Point {
 	// 1. Compute H = h * G
 	H := new(edwards25519.Point).ScalarBaseMult(scalar)
 
@@ -35,7 +34,7 @@ func (dst *TxDest) StealthAddress(scalar *edwards25519.Scalar) *edwards25519.Poi
 	return new(edwards25519.Point).Add(H, P)
 }
 
-func (dst *TxDest) ConcealingPoint(scalar *edwards25519.Scalar) *edwards25519.Point {
+func (dst *TxDest) ConcealingPoint(scalar *edwards25519.Scalar, ogc *zanobase.GenContext, i int) *edwards25519.Point {
 	// ConcealingPoint
 	h := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_CONCEALING_POINT__\x00"), scalar.Bytes()))
 
@@ -44,12 +43,13 @@ func (dst *TxDest) ConcealingPoint(scalar *edwards25519.Scalar) *edwards25519.Po
 	return new(edwards25519.Point).ScalarMult(h, v)
 }
 
-func (dst *TxDest) BlindedAssetId(scalar *edwards25519.Scalar) *edwards25519.Point {
+func (dst *TxDest) BlindedAssetId(scalar *edwards25519.Scalar, ogc *zanobase.GenContext, i int) *edwards25519.Point {
 	// zanocrypto.HashToScalar will also reduce
 	assetBlindingMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_ASSET_BLIND_MASK__\x00"), scalar.Bytes()))
+	ogc.AssetIdBlindingMasks[i] = &zanobase.Scalar{new(edwards25519.Scalar).Set(assetBlindingMask)}
 
 	// 1) Decompress dst.AssetId (Q) to a Point
-	Q := must(new(edwards25519.Point).SetBytes(dst.AssetId[:]))
+	Q := new(edwards25519.Point).Set(dst.AssetId.Point)
 
 	// 3) Multiply R = assetBlindingMask * X
 	R := new(edwards25519.Point).ScalarMult(assetBlindingMask, zanocrypto.C_point_X)
@@ -57,13 +57,13 @@ func (dst *TxDest) BlindedAssetId(scalar *edwards25519.Scalar) *edwards25519.Poi
 	// 4) S = Q + R
 	S := new(edwards25519.Point).Add(Q, R)
 
-	dst.blindedAssetId = S // store before multiplication by 1/8
+	ogc.BlindedAssetIds[i] = &zanobase.Point{S}
 
 	// 2) Multiply by (1/8) & return
 	return new(edwards25519.Point).ScalarMult(zanocrypto.Sc1div8, S)
 }
 
-func (dst *TxDest) AmountCommitment(scalar *edwards25519.Scalar) *edwards25519.Point {
+func (dst *TxDest) AmountCommitment(scalar *edwards25519.Scalar, ogc *zanobase.GenContext, i int) *edwards25519.Point {
 	// amount_blinding_mask = crypto::hash_helper_t::hs(CRYPTO_HDS_OUT_AMOUNT_BLINDING_MASK, h)
 	amountBlindingMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_BLIND_MASK_\x00"), scalar.Bytes()))
 
@@ -71,7 +71,7 @@ func (dst *TxDest) AmountCommitment(scalar *edwards25519.Scalar) *edwards25519.P
 	amount := zanocrypto.ScalarInt(dst.Amount)
 
 	// 3) Let T = dst.BlindedAssetId(scalar).ToExtended()
-	T := dst.blindedAssetId
+	T := ogc.BlindedAssetIds[i].Point
 
 	// 4) We want R = (amount)*T + (mask)*c_point_G
 	//    But GeDoubleScalarMultVartime(&RProj, a, A, b) => a*A + b*B always uses B=basepoint.
@@ -89,6 +89,9 @@ func (dst *TxDest) AmountCommitment(scalar *edwards25519.Scalar) *edwards25519.P
 
 	// --- R = P + Q ---
 	R := new(edwards25519.Point).Add(P, Q)
+
+	// store before multiplication by 1/8 into gencontext
+	ogc.AmountCommitments[i] = &zanobase.Point{new(edwards25519.Point).Set(R)}
 
 	// 5) Multiply R by (1/8):
 	//    R2 = (1/8)*R = GeDoubleScalarMultVartime(r2, cScalar1div8, R, zero)
