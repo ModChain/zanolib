@@ -13,7 +13,7 @@ import (
 )
 
 func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
-	if !bytes.Equal(ftp.SpendPubKey[:], w.SpendPubKey.Bytes()) {
+	if !bytes.Equal(ftp.SpendPubKey.Bytes(), w.SpendPubKey.Bytes()) {
 		return nil, errors.New("spend key does not match")
 	}
 

@@ -11,8 +11,8 @@ import (
 
 type FinalizeTxParam struct {
 	UnlockTime           uint64
-	Extra                []*zanobase.Payload         // currency::extra_v
-	Attachments          []*zanobase.Payload         // currency::attachment_v
+	Extra                []*zanobase.Variant         // currency::extra_v
+	Attachments          []*zanobase.Variant         // currency::attachment_v
 	CryptAddress         *zanobase.AccountPublicAddr // currency::account_public_address
 	TxOutsAttr           uint8
 	Shuffle              bool
@@ -22,7 +22,7 @@ type FinalizeTxParam struct {
 	SelectedTransfers    []zanobase.Varint // not sure why, but this is encoded as "01 00" in the bytestream
 	PreparedDestinations []*TxDest         // currency::tx_destination_entry
 	ExpirationTime       uint64
-	SpendPubKey          zanobase.Value256 // only for validations
+	SpendPubKey          *zanobase.Point // only for validations
 	TxVersion            uint64
 	//TxHardforkId         uint64 // size_t; IN NEW VERSION FIXME
 	ModeSeparateFee uint64

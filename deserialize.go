@@ -7,6 +7,7 @@ import (
 	"io"
 	"reflect"
 
+	"filippo.io/edwards25519"
 	"github.com/KarpelesLab/rc"
 	"github.com/ModChain/zanolib/zanobase"
 )
@@ -146,6 +147,22 @@ func subDeserialize(r rc.ByteAndReadReader, o any, tag string) error {
 		}
 		v.Value = obj.Elem().Interface()
 		return nil
+	case *edwards25519.Point:
+		buf := make([]byte, 32)
+		_, err = io.ReadFull(r, buf)
+		if err != nil {
+			return err
+		}
+		_, err = v.SetBytes(buf)
+		return err
+	case *edwards25519.Scalar:
+		buf := make([]byte, 32)
+		_, err = io.ReadFull(r, buf)
+		if err != nil {
+			return err
+		}
+		_, err = v.SetCanonicalBytes(buf)
+		return err
 	default:
 		if tag == "!" {
 			return fmt.Errorf("unsupported deserialize type %T", o)

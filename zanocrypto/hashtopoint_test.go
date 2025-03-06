@@ -383,11 +383,9 @@ func TestHashToPoint(t *testing.T) {
 		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff 80c90f3f23af8763b058cf5029e42f6a78a3e48dc0eeb38f31b3a6419e64fdbf",
 	}
 
-	var h [32]byte
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
-		copy(h[:], must(hex.DecodeString(vecA[0])))
-		b := zanocrypto.HashToPoint(&h)
+		b := zanocrypto.HashToPoint(must(hex.DecodeString(vecA[0])))
 
 		if hex.EncodeToString(b.Bytes()) != vecA[1] {
 			t.Errorf("Bad result for HashToPoint(%s)=%x instead of %s", vecA[0], b.Bytes(), vecA[1])

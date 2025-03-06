@@ -9,11 +9,11 @@ type ZCSig struct {
 }
 
 type CLSAG_Sig struct {
-	C   Value256   // scalar_t
+	C   *Scalar    // scalar_t
 	R_G []Value256 // for G-components (layers 0, 1),    size = size of the ring
 	R_X []Value256 // for X-component  (layer 2),        size = size of the ring
-	K1  Value256   // public_key auxiliary key image for layer 1 (G)
-	K2  Value256   // public_key auxiliary key image for layer 2 (X)
+	K1  *Point     // public_key auxiliary key image for layer 1 (G)
+	K2  *Point     // public_key auxiliary key image for layer 2 (X)
 }
 
 type CLSAG_GGX_Input struct {

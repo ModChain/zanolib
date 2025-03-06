@@ -6,6 +6,7 @@ import (
 	"io"
 	"reflect"
 
+	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 )
 
@@ -104,6 +105,10 @@ func subSerialize(w io.Writer, o any, tag string) error {
 			return err
 		}
 		return Serialize(w, v.Value)
+	case edwards25519.Point:
+		_, err = w.Write(v.Bytes())
+	case edwards25519.Scalar:
+		_, err = w.Write(v.Bytes())
 	default:
 		if tag == "!" {
 			return fmt.Errorf("unsupported serialize type %T", o)

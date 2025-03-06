@@ -10,11 +10,9 @@ func HashToEC(pubBytes []byte) (*edwards25519.Point, error) {
 	hash := sha3.NewLegacyKeccak256()
 	hash.Write(pubBytes)
 	hashed := hash.Sum(nil)
-	var h [32]byte
-	copy(h[:], hashed)
 
 	// 2) Map those 32 bytes to a curve point: ge_fromfe_frombytes_vartime
-	point, err := geFromFeFromBytesVartime(&h)
+	point, err := geFromFeFromBytesVartime(hashed)
 	if err != nil {
 		return nil, err
 	}
@@ -23,7 +21,7 @@ func HashToEC(pubBytes []byte) (*edwards25519.Point, error) {
 	return point.ScalarMult(ScalarInt(8), point), nil
 }
 
-func geFromFeFromBytesVartime(s *[32]byte) (*edwards25519.Point, error) {
+func geFromFeFromBytesVartime(s []byte) (*edwards25519.Point, error) {
 	h0 := load4(s[0:4])
 	h1 := load3(s[4:7]) << 6
 	h2 := load3(s[7:10]) << 5
