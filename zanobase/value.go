@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/ModChain/edwards25519"
+	"filippo.io/edwards25519"
 )
 
 type Value256 [32]byte
@@ -43,10 +43,10 @@ func (v *Value256) PB32() *[32]byte {
 	return (*[32]byte)(v)
 }
 
-func (v *Value256) ToExtended() *edwards25519.ExtendedGroupElement {
-	var ex edwards25519.ExtendedGroupElement
-	if !ex.FromBytes(v.PB32()) {
+func (v *Value256) ToPoint() *edwards25519.Point {
+	p, err := new(edwards25519.Point).SetBytes(v[:])
+	if err != nil {
 		return nil
 	}
-	return &ex
+	return p
 }

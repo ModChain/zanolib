@@ -3,15 +3,16 @@ package zanolib
 import (
 	"slices"
 
-	"github.com/ModChain/edwards25519"
+	"filippo.io/edwards25519"
+	"github.com/ModChain/zanolib/zanocrypto"
 	"golang.org/x/crypto/sha3"
 )
 
 type Wallet struct {
-	SpendPrivKey *edwards25519.PrivateKey
-	SpendPubKey  *edwards25519.PublicKey
-	ViewPrivKey  *edwards25519.PrivateKey
-	ViewPubKey   *edwards25519.PublicKey
+	SpendPrivKey *edwards25519.Scalar
+	SpendPubKey  *edwards25519.Point
+	ViewPrivKey  *edwards25519.Scalar
+	ViewPubKey   *edwards25519.Point
 	Flags        uint8 // flag 1 = auditable
 }
 
@@ -23,31 +24,29 @@ type Wallet struct {
 func LoadSpendSecret(pk []byte, flags uint8) (*Wallet, error) {
 	pk = slices.Clone(pk)
 	viewKey := hsum(sha3.NewLegacyKeccak256, pk)
-	slices.Reverse(pk)
-	priv, pub, err := edwards25519.PrivKeyFromScalar(pk)
+
+	priv, err := new(edwards25519.Scalar).SetCanonicalBytes(pk)
 	if err != nil {
 		return nil, err
 	}
-
-	// load view key
-	var vk [32]byte
-	copy(vk[:], viewKey)
-	edwards25519.ScReduce32(&vk, &vk)
-	slices.Reverse(vk[:])
-	vpriv, vpub, err := edwards25519.PrivKeyFromScalar(vk[:])
+	//vpriv, err := new(edwards25519.Scalar).SetBytesWithClamping(viewKey)
+	var viewKey64 [64]byte
+	copy(viewKey64[:], viewKey)
+	vpriv, err := new(edwards25519.Scalar).SetUniformBytes(viewKey64[:])
 	if err != nil {
 		return nil, err
 	}
 
 	res := &Wallet{
 		SpendPrivKey: priv,
-		SpendPubKey:  pub,
+		SpendPubKey:  zanocrypto.PubFromPriv(priv),
 		ViewPrivKey:  vpriv,
-		ViewPubKey:   vpub,
+		ViewPubKey:   zanocrypto.PubFromPriv(vpriv),
 		Flags:        flags,
 	}
-	//log.Printf("spend pub = %x", pub.Serialize())
-	//log.Printf("view pub = %x", vpub.Serialize())
+	//log.Printf("spend pub = %x", res.SpendPubKey.Bytes())
+	//log.Printf("view priv = %x", res.ViewPrivKey.Bytes())
+	//log.Printf("view pub = %x", res.ViewPubKey.Bytes())
 	//log.Printf("addr = %s", res.Address())
 
 	return res, nil
@@ -63,8 +62,8 @@ func (w *Wallet) Address() *Address {
 	addr := &Address{
 		Type:     typ,
 		Flags:    w.Flags,
-		SpendKey: w.SpendPubKey.Serialize(),
-		ViewKey:  w.ViewPubKey.Serialize(),
+		SpendKey: w.SpendPubKey.Bytes(),
+		ViewKey:  w.ViewPubKey.Bytes(),
 	}
 
 	return addr
@@ -72,14 +71,12 @@ func (w *Wallet) Address() *Address {
 
 func (w *Wallet) ParseFTP(buf []byte) (*FinalizeTxParam, error) {
 	// buf is encrypted using chacha8 xor initialized with the view private key
-	key := w.ViewPrivKey.Serialize()
-	slices.Reverse(key)
+	key := w.ViewPrivKey.Bytes()
 	return ParseFTP(buf, key)
 }
 
 func (w *Wallet) ParseFinalized(buf []byte) (*FinalizedTx, error) {
 	// buf is encrypted using chacha8 xor initialized with the view private key
-	key := w.ViewPrivKey.Serialize()
-	slices.Reverse(key)
+	key := w.ViewPrivKey.Bytes()
 	return ParseFinalized(buf, key)
 }

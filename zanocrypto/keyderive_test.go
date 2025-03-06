@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
@@ -290,7 +291,26 @@ func TestGenerateKeyDerivation(t *testing.T) {
 		copy(a[:], must(hex.DecodeString(vecA[0])))
 		copy(b[:], must(hex.DecodeString(vecA[1])))
 
-		res, err := zanocrypto.GenerateKeyDerivation(a, b)
+		ap, err := new(edwards25519.Point).SetBytes(a[:])
+		if err != nil {
+			if vecA[2] == "false" {
+				// good
+				continue
+			}
+			t.Errorf("GenerateKeyDerivation failed: %s", err)
+			continue
+		}
+		bs, err := new(edwards25519.Scalar).SetCanonicalBytes(b[:])
+		if err != nil {
+			if vecA[2] == "false" {
+				// good
+				continue
+			}
+			t.Errorf("GenerateKeyDerivation failed: %s", err)
+			continue
+		}
+
+		res, err := zanocrypto.GenerateKeyDerivation(ap, bs)
 		if err != nil {
 			if vecA[2] == "false" {
 				// good
@@ -304,8 +324,8 @@ func TestGenerateKeyDerivation(t *testing.T) {
 			continue
 		}
 
-		if hex.EncodeToString(res[:]) != vecA[3] {
-			t.Errorf("Bad result for GenerateKeyDerivation(%s,%s)=%x instead of %s", vecA[0], vecA[1], res, vecA[3])
+		if hex.EncodeToString(res.Bytes()) != vecA[3] {
+			t.Errorf("Bad result for GenerateKeyDerivation(%s,%s)=%x instead of %s", vecA[0], vecA[1], res.Bytes(), vecA[3])
 		}
 	}
 }

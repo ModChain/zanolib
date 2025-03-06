@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
@@ -289,16 +290,14 @@ func TestDerivePublicKey(t *testing.T) {
 	var (
 		derivation [32]byte
 		index      uint64
-		basePublic [32]byte
 	)
 
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
 		copy(derivation[:], must(hex.DecodeString(vecA[0])))
 		index = must(strconv.ParseUint(vecA[1], 0, 64))
-		copy(basePublic[:], must(hex.DecodeString(vecA[2])))
 
-		res, err := zanocrypto.DerivePublicKey(derivation, index, &basePublic)
+		pt, err := new(edwards25519.Point).SetBytes(must(hex.DecodeString(vecA[2])))
 		if err != nil {
 			if vecA[3] != "false" {
 				t.Errorf("failed to perform DerivePublicKey: %s", err)
@@ -306,8 +305,16 @@ func TestDerivePublicKey(t *testing.T) {
 			continue
 		}
 
-		if hex.EncodeToString(res[:]) != vecA[4] {
-			t.Errorf("Bad result for DerivePublicKey(%s,%d,%s)=%x instead of %s", vecA[0], index, vecA[2], res, vecA[4])
+		res, err := zanocrypto.DerivePublicKey(derivation[:], index, pt)
+		if err != nil {
+			if vecA[3] != "false" {
+				t.Errorf("failed to perform DerivePublicKey: %s", err)
+			}
+			continue
+		}
+
+		if hex.EncodeToString(res.Bytes()) != vecA[4] {
+			t.Errorf("Bad result for DerivePublicKey(%s,%d,%s)=%x instead of %s", vecA[0], index, vecA[2], res.Bytes(), vecA[4])
 		}
 	}
 }
@@ -575,22 +582,20 @@ func TestDeriveSecretKey(t *testing.T) {
 	var (
 		derivation [32]byte
 		index      uint64
-		basePublic [32]byte
 	)
 
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
 		copy(derivation[:], must(hex.DecodeString(vecA[0])))
 		index = must(strconv.ParseUint(vecA[1], 0, 64))
-		copy(basePublic[:], must(hex.DecodeString(vecA[2])))
 
-		res, err := zanocrypto.DeriveSecretKey(derivation, index, &basePublic)
+		res, err := zanocrypto.DeriveSecretKey(derivation[:], index, must(new(edwards25519.Scalar).SetCanonicalBytes(must(hex.DecodeString(vecA[2])))))
 		if err != nil {
 			continue
 		}
 
-		if hex.EncodeToString(res[:]) != vecA[3] {
-			t.Errorf("Bad result for DerivePublicKey(%s,%d,%s)=%x instead of %s", vecA[0], index, vecA[2], res, vecA[3])
+		if hex.EncodeToString(res.Bytes()) != vecA[3] {
+			t.Errorf("Bad result for DerivePublicKey(%s,%d,%s)=%x instead of %s", vecA[0], index, vecA[2], res.Bytes(), vecA[3])
 		}
 	}
 }

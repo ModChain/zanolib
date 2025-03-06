@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/ModChain/edwards25519"
+	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
 func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
-	if !bytes.Equal(ftp.SpendPubKey[:], w.SpendPubKey.Serialize()) {
+	if !bytes.Equal(ftp.SpendPubKey[:], w.SpendPubKey.Bytes()) {
 		return nil, errors.New("spend key does not match")
 	}
 
@@ -37,25 +37,21 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	// construct tx uses some method to get an intial value?
 	if oneTimeKey == nil {
-		var err error
-		priv, err := edwards25519.GeneratePrivateKey()
-		if err != nil {
-			return nil, err
-		}
-		oneTimeKey = priv.Serialize()
+		priv := zanocrypto.GenerateKeyScalar()
+		oneTimeKey = priv.Bytes()
 		slices.Reverse(oneTimeKey)
 	}
-	copy(res.OneTimeKey[:], oneTimeKey)
-	slices.Reverse(oneTimeKey)
-	priv, pub, err := edwards25519.PrivKeyFromScalar(oneTimeKey)
-	if err != nil {
-		return nil, err
-	}
-	_, _ = priv, pub
 
-	var pubKey zanobase.Value256
-	copy(pubKey[:], pub.Serialize())
-	tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagPubKey, Value: pubKey})
+	copy(res.OneTimeKey[:], oneTimeKey)
+
+	priv := must(new(edwards25519.Scalar).SetCanonicalBytes(oneTimeKey))
+	pub := zanocrypto.PubFromPriv(priv)
+	var pubV zanobase.Value256
+	copy(pubV[:], pub.Bytes())
+	//slices.Reverse(oneTimeKey)
+	//priv, pub, err := edwards25519.PrivKeyFromScalar(oneTimeKey)
+
+	tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagPubKey, Value: pubV})
 	tx.Extra = append(tx.Extra, &zanobase.Variant{Tag: zanobase.TagEtcTxFlags16, Value: uint16(0)}) // Flags
 
 	// use ftp.Sources
@@ -76,32 +72,26 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		}
 
 		// Derive ephemeral
-		var realOutTxKey [32]byte
-		copy(realOutTxKey[:], src.RealOutTxKey[:])
+		realOutTxKey, err := new(edwards25519.Point).SetBytes(src.RealOutTxKey[:])
+		if err != nil {
+			return nil, fmt.Errorf("while decoding real_out_tx_key: %w", err)
+		}
 
 		// generate_key_image_helper(sender_account_keys, src_entr.real_out_tx_key,
-		var ackViewSecretKey [32]byte
-		copy(ackViewSecretKey[:], w.ViewPrivKey.Serialize())
-		slices.Reverse(ackViewSecretKey[:])
-		derivation, err := zanocrypto.GenerateKeyDerivation(realOutTxKey, ackViewSecretKey)
+		derivation, err := zanocrypto.GenerateKeyDerivation(realOutTxKey, w.ViewPrivKey)
 		if err != nil {
 			return nil, err
 		}
-		var ackSpendPublic [32]byte
-		copy(ackSpendPublic[:], w.SpendPubKey.Serialize())
-		in_e_pub, err := zanocrypto.DerivePublicKey(derivation, src.RealOutInTxIndex, &ackSpendPublic)
+		in_e_pub, err := zanocrypto.DerivePublicKey(derivation.Bytes(), src.RealOutInTxIndex, w.SpendPubKey)
 		if err != nil {
 			return nil, err
 		}
-		var ackSpendPriv [32]byte
-		copy(ackSpendPriv[:], w.SpendPrivKey.Serialize())
-		slices.Reverse(ackSpendPriv[:])
-		in_e_sec, err := zanocrypto.DeriveSecretKey(derivation, src.RealOutInTxIndex, &ackSpendPriv)
+		in_e_sec, err := zanocrypto.DeriveSecretKey(derivation.Bytes(), src.RealOutInTxIndex, w.SpendPrivKey)
 		if err != nil {
 			return nil, err
 		}
 		// in_context.in_ephemeral.pub == in_context.outputs[in_context.real_out_index].stealth_address
-		if !bytes.Equal(in_e_pub[:], realOut.StealthAddress[:]) {
+		if !bytes.Equal(in_e_pub.Bytes(), realOut.StealthAddress[:]) {
 			return nil, errors.New("derived public key missmatch with output public key!")
 		}
 		// key image
@@ -110,7 +100,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		if err != nil {
 			return nil, err
 		}
-		vin.KeyImage = keyImage
+		copy(vin.KeyImage[:], keyImage.Bytes())
 		//RealOutTxKey               Value256 // crypto::public_key
 		//RealOutAmountBlindingMask  Value256 // crypto::scalar_t
 		//RealOutAssetIdBlindingMask Value256 // crypto::scalar_t
@@ -131,30 +121,34 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		outputIndex := len(tx.Vout)
 		dst := ftp.PreparedDestinations[i]
 		// derivation = (crypto::scalar_t(tx_sec_key) * crypto::point_t(apa.view_public_key)).modify_mul8().to_public_key(); // d = 8 * r * V
-		derivation, err := zanocrypto.GenerateKeyDerivation(dst.Addr[0].ViewKey, res.OneTimeKey)
+		dstViewKey, err := new(edwards25519.Point).SetBytes(dst.Addr[0].ViewKey[:])
+		if err != nil {
+			return nil, err
+		}
+		derivation, err := zanocrypto.GenerateKeyDerivation(dstViewKey, priv)
 		if err != nil {
 			return nil, err
 		}
 
 		// store derivation hint into the tx
 		// TODO do not insert if duplicate
-		hint := zanocrypto.DerivationHint(derivation[:])
+		hint := zanocrypto.DerivationHint(derivation)
 		hints[hint] = true
 
 		// compute scalar for derivation
 		// crypto::derivation_to_scalar((const crypto::key_derivation&)derivation, output_index, h.as_secret_key()); // h = Hs(8 * r * V, i)
-		scalar := zanocrypto.HashToScalar(slices.Concat(derivation[:], zanobase.Varint(outputIndex).Bytes()))
+		scalar := zanocrypto.HashToScalar(slices.Concat(derivation.Bytes(), zanobase.Varint(outputIndex).Bytes()))
 
-		amountMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_MASK_______\x00"), scalar[:]))
+		amountMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_MASK_______\x00"), scalar.Bytes()))
 
 		//UnlockTime      uint64               //
 		vout := &zanobase.TxOutZarcanium{
-			StealthAddress:   *dst.StealthAddress(&scalar),
-			ConcealingPoint:  *dst.ConcealingPoint(&scalar),
-			BlindedAssetId:   *dst.BlindedAssetId(&scalar),
-			EncryptedAmount:  dst.Amount ^ binary.LittleEndian.Uint64(amountMask[:8]),
-			AmountCommitment: *dst.AmountCommitment(&scalar),
+			EncryptedAmount: dst.Amount ^ binary.LittleEndian.Uint64(amountMask.Bytes()[:8]),
 		}
+		copy(vout.StealthAddress[:], dst.StealthAddress(scalar).Bytes())
+		copy(vout.ConcealingPoint[:], dst.ConcealingPoint(scalar).Bytes())
+		copy(vout.BlindedAssetId[:], dst.BlindedAssetId(scalar).Bytes())
+		copy(vout.AmountCommitment[:], dst.AmountCommitment(scalar).Bytes())
 
 		// if audit address, set vout.MixAttr=1
 		if dst.Addr[0].Flags&1 == 1 {

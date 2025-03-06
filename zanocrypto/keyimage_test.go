@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
@@ -268,21 +269,20 @@ func TestKeyImage(t *testing.T) {
 		"7427c053014583ecd07e81e1c917906c381af54a7ecaba8498225518a156bae9 d9e07405029a8bd4ba75dbda93756228e18674e3138d2f7b2e7796ee7430ee01 1253d396a6e7a2bff50c1fdf54bb90157727fa20466fac74e9138355b17092e9",
 	}
 
-	var pub, sec [32]byte
-
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
-		copy(pub[:], must(hex.DecodeString(vecA[0])))
-		copy(sec[:], must(hex.DecodeString(vecA[1])))
 
-		res, err := zanocrypto.ComputeKeyImage(&sec, &pub)
+		pub := must(new(edwards25519.Point).SetBytes(must(hex.DecodeString(vecA[0]))))
+		sec := must(new(edwards25519.Scalar).SetCanonicalBytes(must(hex.DecodeString(vecA[1]))))
+
+		res, err := zanocrypto.ComputeKeyImage(sec, pub)
 		if err != nil {
 			t.Errorf("ComputeKeyImage error: %s", err)
 			continue
 		}
 
-		if vecA[2] != hex.EncodeToString(res[:]) {
-			t.Errorf("ComputeKeyImage(%s,%s)=%x instead of %s", vecA[1], vecA[0], res, vecA[2])
+		if vecA[2] != hex.EncodeToString(res.Bytes()) {
+			t.Errorf("ComputeKeyImage(%s,%s)=%x instead of %s", vecA[1], vecA[0], res.Bytes(), vecA[2])
 		}
 	}
 }

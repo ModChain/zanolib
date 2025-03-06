@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
@@ -268,7 +269,7 @@ func TestHashToScalar(t *testing.T) {
 		"2ace 427f5090283713a2a8448285f2a22cc8cf5374845766b6370425e2319e40f50d",
 	}
 
-	var v [32]byte
+	var v *edwards25519.Scalar
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
 		if vecA[0] == "x" {
@@ -277,8 +278,8 @@ func TestHashToScalar(t *testing.T) {
 			v = zanocrypto.HashToScalar(must(hex.DecodeString(vecA[0])))
 		}
 
-		if hex.EncodeToString(v[:]) != vecA[1] {
-			t.Errorf("Bad result for HashToScalar(%s)=%x instead of %s", vecA[0], v, vecA[1])
+		if hex.EncodeToString(v.Bytes()) != vecA[1] {
+			t.Errorf("Bad result for HashToScalar(%s)=%x instead of %s", vecA[0], v.Bytes(), vecA[1])
 		}
 	}
 }

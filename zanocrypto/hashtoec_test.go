@@ -272,15 +272,14 @@ func TestHashToEC(t *testing.T) {
 	for _, vec := range vectors {
 		vecA := strings.Fields(vec)
 		copy(pub[:], must(hex.DecodeString(vecA[0])))
-		v, err := zanocrypto.HashToEC(&pub)
+		v, err := zanocrypto.HashToEC(pub[:])
 		if err != nil {
 			t.Errorf("HashToEC failed: %s", err)
 			continue
 		}
-		var b [32]byte
-		v.ToBytes(&b)
+		b := v.Bytes()
 
-		if hex.EncodeToString(b[:]) != vecA[1] {
+		if hex.EncodeToString(b) != vecA[1] {
 			t.Errorf("Bad result for HashToEC(%s)=%x instead of %s", vecA[0], b, vecA[1])
 		}
 	}

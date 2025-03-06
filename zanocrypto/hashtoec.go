@@ -1,36 +1,29 @@
 package zanocrypto
 
 import (
-	"github.com/ModChain/edwards25519"
+	"filippo.io/edwards25519"
+	"filippo.io/edwards25519/field"
 	"golang.org/x/crypto/sha3"
 )
 
-func HashToEC(pubBytes *[32]byte) (*edwards25519.ExtendedGroupElement, error) {
+func HashToEC(pubBytes []byte) (*edwards25519.Point, error) {
 	hash := sha3.NewLegacyKeccak256()
-	hash.Write(pubBytes[:])
+	hash.Write(pubBytes)
 	hashed := hash.Sum(nil)
 	var h [32]byte
 	copy(h[:], hashed)
 
 	// 2) Map those 32 bytes to a curve point: ge_fromfe_frombytes_vartime
-	var point edwards25519.ProjectiveGroupElement
-	geFromFeFromBytesVartime(&point, &h)
+	point, err := geFromFeFromBytesVartime(&h)
+	if err != nil {
+		return nil, err
+	}
 
 	// 3) Multiply by 8 => three doublings
-	var tmp edwards25519.CompletedGroupElement
-	point.Double(&tmp) // 2×
-	tmp.ToProjective(&point)
-	point.Double(&tmp) // 4×
-	tmp.ToProjective(&point)
-	point.Double(&tmp) // 8×
-
-	// 4) Convert to ExtendedGroupElement (ge_p3)
-	var out edwards25519.ExtendedGroupElement
-	tmp.ToExtended(&out)
-	return &out, nil
+	return point.ScalarMult(ScalarInt(8), point), nil
 }
 
-func geFromFeFromBytesVartime(r *edwards25519.ProjectiveGroupElement, s *[32]byte) {
+func geFromFeFromBytesVartime(s *[32]byte) (*edwards25519.Point, error) {
 	h0 := load4(s[0:4])
 	h1 := load3(s[4:7]) << 6
 	h2 := load3(s[7:10]) << 5
@@ -86,114 +79,139 @@ func geFromFeFromBytesVartime(r *edwards25519.ProjectiveGroupElement, s *[32]byt
 	h9 += carry8
 	h8 -= carry8 << 26
 
-	var u edwards25519.FieldElement
-	u[0] = h0
-	u[1] = h1
-	u[2] = h2
-	u[3] = h3
-	u[4] = h4
-	u[5] = h5
-	u[6] = h6
-	u[7] = h7
-	u[8] = h8
-	u[9] = h9
+	u, err := FieldFromInt10([10]int64{h0, h1, h2, h3, h4, h5, h6, h7, h8, h9})
+	if err != nil {
+		panic(err)
+	}
 
 	// End fe_frombytes.c
-	var v, w, x, y, z edwards25519.FieldElement
-	var sign byte
+	var v, w, x, y, z *field.Element
+	var sign int
 
 	// v = 2 * u^2
-	edwards25519.FeSquare2(&v, &u)
+	v = new(field.Element).Square(u)
+	v = v.Mult32(v, 2)
 
 	// w = 1
-	edwards25519.FeOne(&w)
+	w = new(field.Element).One()
 
 	// w = 2*u^2 + 1
-	edwards25519.FeAdd(&w, &v, &w)
+	w = new(field.Element).Add(v, w)
 
 	// x = w^2
-	edwards25519.FeSquare(&x, &w)
+	x = new(field.Element).Square(w)
 
 	// y = fe_ma2 * v = (-A^2)*v  (Monero code comment says "y = -2 * A^2 * u^2"?)
-	edwards25519.FeMul(&y, &FeMa2, &v)
+	y = new(field.Element).Multiply(FeMa2, v)
 
 	// x = w^2 + y = w^2 - 2*A^2*u^2
-	edwards25519.FeAdd(&x, &x, &y)
+	x = new(field.Element).Add(x, y)
 
 	// r->X = (w / x)^(m+1)
-	edwards25519.FeDivPowM1(&r.X, &w, &x)
+	rX := FeDivPowM1(new(field.Element), w, x)
 
 	// y = (r->X)^2
-	edwards25519.FeSquare(&y, &r.X)
+	y = new(field.Element).Square(rX)
 
 	// x = y * x
-	edwards25519.FeMul(&x, &y, &x)
+	x = new(field.Element).Multiply(y, x)
 
 	// y = w - x
-	edwards25519.FeSub(&y, &w, &x)
+	y = new(field.Element).Subtract(w, x)
 
 	// z = fe_ma = -A
-	edwards25519.FeCopy(&z, &FeMa)
+	z = new(field.Element).Set(FeMa)
 
 	// if (fe_isnonzero(y)) => the "if" that goes to "negative" in C code
-	if edwards25519.FeIsNonZero(&y) != 0 {
+	if y.Equal(new(field.Element).Zero()) == 0 {
 		// y = w + x
-		edwards25519.FeAdd(&y, &w, &x)
-		if edwards25519.FeIsNonZero(&y) != 0 {
+		y = new(field.Element).Add(w, x)
+		if y.Equal(new(field.Element).Zero()) == 0 {
 			// goto negative
 			goto NEGATIVE
 		} else {
 			// fe_mul(r->X, r->X, fe_fffb1)
-			edwards25519.FeMul(&r.X, &r.X, &FeFffb1)
+			rX = rX.Multiply(rX, FeFffb1)
 		}
 	} else {
 		// else => fe_mul(r->X, r->X, fe_fffb2)
-		edwards25519.FeMul(&r.X, &r.X, &FeFffb2)
+		rX = rX.Multiply(rX, FeFffb2)
 	}
 
 	// r->X = r->X * u
-	edwards25519.FeMul(&r.X, &r.X, &u)
+	rX = rX.Multiply(rX, u)
 
 	// z = z * v = -A * (2*u^2)
-	edwards25519.FeMul(&z, &z, &v)
+	z = z.Multiply(z, v)
 
 	sign = 0
 	goto SETSIGN
 
 NEGATIVE:
 	// x = x * fe_sqrtm1
-	edwards25519.FeMul(&x, &x, &edwards25519.SqrtM1)
+	x = x.Multiply(x, SqrtM1)
 	// y = w - x
-	edwards25519.FeSub(&y, &w, &x)
-	if edwards25519.FeIsNonZero(&y) != 0 {
+	y = new(field.Element).Subtract(w, x)
+	if y.Equal(new(field.Element).Zero()) == 0 {
 		// The C code has an assert that the next line is nonzero check
 		// fe_add(y, w, x); !fe_isnonzero(y)
-		edwards25519.FeAdd(&y, &w, &x)
+		y = new(field.Element).Add(w, x)
 		// if still nonzero => something's wrong
-		if edwards25519.FeIsNonZero(&y) != 0 {
+		if y.Equal(new(field.Element).Zero()) == 0 {
 			panic("assertion failed in ge_fromfe_frombytes_vartime")
 		}
 		// fe_mul(r->X, r->X, fe_fffb3)
-		edwards25519.FeMul(&r.X, &r.X, &FeFffb3)
+		rX = rX.Multiply(rX, FeFffb3)
 	} else {
-		edwards25519.FeMul(&r.X, &r.X, &FeFffb4)
+		rX = rX.Multiply(rX, FeFffb4)
 	}
 	// sign = 1
 	sign = 1
 
 SETSIGN:
 	// if (fe_isnegative(r->X) != sign) => fe_neg(r->X, r->X)
-	if edwards25519.FeIsNegative(&r.X) != sign {
+	if rX.IsNegative() != sign {
 		// ensure r->X != 0
-		if edwards25519.FeIsNonZero(&r.X) == 0 {
+		if rX.Equal(new(field.Element).Zero()) == 1 {
 			panic("Unexpected zero field element in setsign")
 		}
-		edwards25519.FeNeg(&r.X, &r.X)
+		rX = rX.Negate(rX)
 	}
 	// r->Z = z + w
-	edwards25519.FeAdd(&r.Z, &z, &w)
+	rZ := new(field.Element).Add(z, w)
 	// r->Y = z - w
-	edwards25519.FeSub(&r.Y, &z, &w)
+	rY := new(field.Element).Subtract(z, w)
 	// r->X = r->X * r->Z
-	edwards25519.FeMul(&r.X, &r.X, &r.Z)
+	rX = rX.Multiply(rX, rZ)
+
+	// compute T
+
+	rT := new(field.Element).Multiply(rX, rY)
+	rZInv := new(field.Element).Invert(rZ) // 1/Z in the field
+	rT = rT.Multiply(rT, rZInv)            // T = (X*Y) / Z
+
+	point := edwards25519.NewIdentityPoint()
+	return point.SetExtendedCoordinates(rX, rY, rZ, rT) //affineToExtended(toAffine(rX, rY, rZ)))
+}
+
+func toAffine(ix, iy, iz *field.Element) (*field.Element, *field.Element) {
+	zInv := new(field.Element).Invert(iz) // zInv = 1/Z
+
+	x := new(field.Element).Multiply(ix, zInv) // x = x/z
+	y := new(field.Element).Multiply(iy, zInv) // y = y/z
+	return x, y
+}
+
+func affineToExtended(x, y *field.Element) (X, Y, Z, T *field.Element) {
+	X = new(field.Element)
+	Y = new(field.Element)
+	Z = new(field.Element)
+	T = new(field.Element)
+
+	X = X.Set(x)
+	Y = Y.Set(y)
+	Z = Z.One()
+	T = T.Multiply(x, y)
+
+	return X, Y, Z, T
 }
