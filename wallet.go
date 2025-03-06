@@ -30,6 +30,8 @@ func LoadSpendSecret(pk []byte, flags uint8) (*Wallet, error) {
 		return nil, err
 	}
 	//vpriv, err := new(edwards25519.Scalar).SetBytesWithClamping(viewKey)
+	// zano does *not* clamp view keys. Clamping keys here would cause a different key to be
+	// created and overall things not to work.
 	var viewKey64 [64]byte
 	copy(viewKey64[:], viewKey)
 	vpriv, err := new(edwards25519.Scalar).SetUniformBytes(viewKey64[:])
