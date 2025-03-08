@@ -84,8 +84,7 @@ func GenerateCLSAG_GGX(
 	// hash_helper_t::hs_t hsc(4 + 3  * ring_size);
 	hsc := newClsagHash()
 
-	// hsc.add_scalar(m) was in C++.  We'll just add m (a raw hash?) as bytes:
-	//hsc.addBytes(m)
+	// since this was hsc.add_scalar(m), the value of m is converted to a scalar and has "mod l" applied to it
 	hsc.addBytesModL(m)
 
 	// for each ring item, add stealth_address, amount_commitment, blinded_asset_id
@@ -112,15 +111,11 @@ func GenerateCLSAG_GGX(
 	// We'll assume a single calcHash() usage
 	inputHash := hsc.calcRawHash()
 
-	// For each "layer", you appended some domain-separation bytes, then hashed again.
-	// We'll do something like:
 	//   hsc.add_32_chars(CRYPTO_HDS_CLSAG_GGX_LAYER_0)
 	//   hsc.add_hash(input_hash)
 	//   agg_coeff_0 = hsc.calc_hash()
-	//
-	// In Go, do something similar:
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_0)
-	hsc.addBytes(inputHash) // FIXME check if this doesn't cause issues to mod l the hash
+	hsc.addBytes(inputHash)
 	aggCoeff0 := hsc.calcHash()
 
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_1)
@@ -131,10 +126,8 @@ func GenerateCLSAG_GGX(
 	hsc.addBytes(inputHash)
 	aggCoeff2 := hsc.calcHash()
 
-	//----------------------------------------------------------------
 	// Prepare A_i, Q_i by copying ring[i].amount_commitment and .blinded_asset_id,
 	// then multiply each by 8
-	//----------------------------------------------------------------
 	Ai := make([]*edwards25519.Point, ringSize)
 	Qi := make([]*edwards25519.Point, ringSize)
 	for i := 0; i < ringSize; i++ {
@@ -144,10 +137,8 @@ func GenerateCLSAG_GGX(
 		//log.Printf("A_i[%d] = %x  Q_i[%d] = %x", i, Ai[i].Bytes(), i, Qi[i].Bytes())
 	}
 
-	//----------------------------------------------------------------
 	// Calculate aggregated pubkeys for layer 0 & 1 => W_pub_keys_g,
 	// and for layer 2 => W_pub_keys_x
-	//----------------------------------------------------------------
 	WpubG := make([]*edwards25519.Point, ringSize)
 	WpubX := make([]*edwards25519.Point, ringSize)
 
@@ -165,9 +156,8 @@ func GenerateCLSAG_GGX(
 		//log.Printf("WpubX[%d] = %x", i, WpubX[i].Bytes())
 	}
 
-	//----------------------------------------------------------------
 	// Aggregate secret keys
-	//----------------------------------------------------------------
+	//
 	// w_sec_key_g = agg_coeff_0*secret_0_xp + agg_coeff_1*secret_1_f
 	wSecKeyG := new(edwards25519.Scalar).Multiply(aggCoeff0, secret0Xp)
 	wSecKeyG = new(edwards25519.Scalar).Add(wSecKeyG, new(edwards25519.Scalar).Multiply(aggCoeff1, secret1F))
@@ -188,9 +178,8 @@ func GenerateCLSAG_GGX(
 		return nil, errors.New("CLSAG_GGX w_sec_key_x mismatch")
 	}
 
-	//----------------------------------------------------------------
 	// Aggregate key images
-	//----------------------------------------------------------------
+	//
 	// W_key_image_g = agg_coeff_0*key_image + agg_coeff_1*K1
 	WkeyImageGPart1 := new(edwards25519.Point).ScalarMult(aggCoeff0, keyImage)
 	WkeyImageGPart2 := new(edwards25519.Point).ScalarMult(aggCoeff1, K1)
@@ -203,9 +192,7 @@ func GenerateCLSAG_GGX(
 
 	//log.Printf("W_key_image_x: %x", WkeyImageX.Bytes())
 
-	//----------------------------------------------------------------
 	// Initial commitment: alpha_g, alpha_x are random scalars
-	//----------------------------------------------------------------
 	alphaG := RandomScalar(rand.Reader)
 	alphaX := RandomScalar(rand.Reader)
 
