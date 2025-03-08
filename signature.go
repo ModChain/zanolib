@@ -12,6 +12,10 @@ import (
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
+var (
+	CRYPTO_HDS_OUT_AMOUNT_BLINDING_MASK = []byte("ZANO_HDS_OUT_AMOUNT_BLIND_MASK_\x00")
+)
+
 func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
 	if !bytes.Equal(ftp.SpendPubKey.Bytes(), w.SpendPubKey.Bytes()) {
 		return nil, errors.New("spend key does not match")
@@ -42,7 +46,6 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 	if oneTimeKey == nil {
 		priv := zanocrypto.GenerateKeyScalar()
 		oneTimeKey = priv.Bytes()
-		slices.Reverse(oneTimeKey)
 	}
 
 	copy(res.OneTimeKey[:], oneTimeKey)
@@ -92,6 +95,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		if err != nil {
 			return nil, err
 		}
+		src.ephemeral = &zanobase.KeyPair{Sec: &zanobase.Scalar{in_e_sec}, Pub: &zanobase.Point{in_e_pub}}
 		// in_context.in_ephemeral.pub == in_context.outputs[in_context.real_out_index].stealth_address
 		if !bytes.Equal(in_e_pub.Bytes(), realOut.StealthAddress.Bytes()) {
 			return nil, errors.New("derived public key missmatch with output public key!")
@@ -102,7 +106,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		if err != nil {
 			return nil, err
 		}
-		copy(vin.KeyImage[:], keyImage.Bytes())
+		vin.KeyImage = &zanobase.Point{keyImage}
 		//RealOutTxKey               Value256 // crypto::public_key
 		//RealOutAmountBlindingMask  Value256 // crypto::scalar_t
 		//RealOutAssetIdBlindingMask Value256 // crypto::scalar_t
@@ -148,7 +152,8 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 		scalar := zanocrypto.HashToScalar(slices.Concat(derivation.Bytes(), zanobase.Varint(outputIndex).Bytes()))
 
 		amountMask := zanocrypto.HashToScalar(slices.Concat([]byte("ZANO_HDS_OUT_AMOUNT_MASK_______\x00"), scalar.Bytes()))
-		ogc.AmountBlindingMasks[i] = &zanobase.Scalar{new(edwards25519.Scalar).Set(amountMask)}
+		amountBlindingMask := zanocrypto.HashToScalar(slices.Concat(CRYPTO_HDS_OUT_AMOUNT_BLINDING_MASK, scalar.Bytes()))
+		ogc.AmountBlindingMasks[i] = &zanobase.Scalar{new(edwards25519.Scalar).Set(amountBlindingMask)}
 
 		//UnlockTime      uint64               //
 		vout := &zanobase.TxOutZarcanium{
@@ -199,11 +204,22 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 	// generate proofs and signatures
 	// (any changes made below should only affect the signatures/proofs and should not impact the prefix hash calculation)
 
-	for _, src := range ftp.Sources {
+	txId, err := GetTransactionPrefixHash(tx)
+	if err != nil {
+		return nil, err
+	}
+	//log.Printf("tx_id = %x (1e78c6f279553e4832a888e429fcc1b2c049d4e8b68cdb8ea9f98a50bc4a95b6)", txId)
+
+	for n, src := range ftp.Sources {
 		if src.IsZC() {
 			// r = generate_ZC_sig(tx_hash_for_signature, i_ + input_starter_index, source_entry, in_contexts[i_mapped], sender_account_keys, flags, gen_context, tx, i_ + 1 == sources.size(), separately_signed_tx_complete)
 			sig := new(zanobase.ZCSig)
-			src.generateZCSig(sig, nil, ogc)
+
+			txHashForSig, err := PreparePrefixHashForSign(tx, n, txId)
+			if err != nil {
+				return nil, err
+			}
+			src.generateZCSig(tx, n, sig, txHashForSig, ogc)
 			tx.Signatures = append(tx.Signatures, &zanobase.Variant{Tag: zanobase.TagZCSig, Value: sig})
 		}
 	}

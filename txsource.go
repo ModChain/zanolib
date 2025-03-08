@@ -1,6 +1,8 @@
 package zanolib
 
 import (
+	"crypto/rand"
+
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
@@ -28,6 +30,7 @@ type TxSource struct {
 	MsKeysCount                uint64            // size_t
 	SeparatelySignedTxComplete bool
 	HtlcOrigin                 string // for htlc, specify origin. len = 1, content = "\x00" ?
+	ephemeral                  *zanobase.KeyPair
 }
 
 func (src *TxSource) IsZC() bool {
@@ -35,36 +38,44 @@ func (src *TxSource) IsZC() bool {
 	return src.RealOutAssetIdBlindingMask.Scalar.Equal(zanocrypto.ScZero) == 0
 }
 
-func (src *TxSource) generateZCSig(sig *zanobase.ZCSig, txHashForSig []byte, ogc *zanobase.GenContext) error {
+func (src *TxSource) generateZCSig(tx *zanobase.Transaction, inputIndex int, sig *zanobase.ZCSig, txHashForSig []byte, ogc *zanobase.GenContext) error {
+	in := zanobase.VariantAs[*zanobase.TxInZcInput](tx.Vin[inputIndex])
+
 	//crypto::point_t asset_id_pt(se.asset_id);
 	assetId := ogc.AssetIds[0].Point // TODO get asset id for source? How?
+	//assetId := edwards25519.NewIdentityPoint()
 	//crypto::point_t source_blinded_asset_id = asset_id_pt + se.real_out_asset_id_blinding_mask * crypto::c_point_X; // T_i = H_i + r_i * X
 	sourceBlindedAssetId := new(edwards25519.Point).Add(assetId, new(edwards25519.Point).ScalarMult(src.RealOutAssetIdBlindingMask.Scalar, zanocrypto.C_point_X))
 	//ogc.real_zc_ins_asset_ids.emplace_back(asset_id_pt);
-	// TODO
+	ogc.RealZcInsAssetIds = append(ogc.RealZcInsAssetIds, &zanobase.Point{assetId})
+
 	//crypto::scalar_t pseudo_out_amount_blinding_mask = 0;
-	var pseudoOutAmountBlindingMask *edwards25519.Scalar
-	//crypto::scalar_t pseudo_out_asset_id_blinding_mask = crypto::scalar_t::random();
-	// XXX pseudoOutAssetIdBlindingMask := zanocrypto.RandomScalar(rand.Reader)
-	// either normal tx or the last signature of consolidated tx -- in both cases we need to calculate non-random blinding mask for pseudo output commitment
+
 	//pseudo_out_amount_blinding_mask = ogc.amount_blinding_masks_sum - ogc.pseudo_out_amount_blinding_masks_sum + (ogc.ao_commitment_in_outputs ? ogc.ao_amount_blinding_mask : -ogc.ao_amount_blinding_mask);      // A_1 - A^p_0 = (f_1 - f'_1) * G   =>  f'_{i-1} = sum{y_j} - sum{f'_i}
-	aoAmountBlindingMask := new(edwards25519.Scalar).Set(ogc.AoAmountBlindingMask.Scalar)
+	var pseudoOutAmountBlindingMask *edwards25519.Scalar
+	A := new(edwards25519.Scalar).Set(ogc.AoAmountBlindingMask.Scalar)
 	if !ogc.AoCommitmentInOutputs {
-		aoAmountBlindingMask = aoAmountBlindingMask.Negate(aoAmountBlindingMask)
+		A = A.Negate(A)
 	}
-	//pseudoOutAmountBlindingMask = new(edwards25519.Scalar).Add(new(edwards25519.Scalar).Subtract(ogc.AmountBlindingMasksSum.Scalar, ogc.PseudoOutAmountBlindingMasksSum.Scalar), aoAmountBlindingMask)
-	// ogc.PseudoOutAmountBlindingMasksSum.Scalar seems to be always zero?
-	pseudoOutAmountBlindingMask = new(edwards25519.Scalar).Add(ogc.AmountBlindingMasksSum.Scalar, aoAmountBlindingMask)
+	if ogc.PseudoOutAmountBlindingMasksSum != nil {
+		A = new(edwards25519.Scalar).Add(ogc.PseudoOutAmountBlindingMasksSum.Scalar, A)
+	}
+	pseudoOutAmountBlindingMask = new(edwards25519.Scalar).Subtract(ogc.AmountBlindingMasksSum.Scalar, A)
+
+	pseudoOutAssetIdBlindingMask := zanocrypto.RandomScalar(rand.Reader)
 
 	//crypto::point_t pseudo_out_blinded_asset_id = source_blinded_asset_id + pseudo_out_asset_id_blinding_mask * crypto::c_point_X;            // T^p_i = T_i + r'_i * X
-	pseudoOutBlindedAssetId := new(edwards25519.Point).Add(sourceBlindedAssetId, new(edwards25519.Point).ScalarMult(pseudoOutAmountBlindingMask, zanocrypto.C_point_X))
+	pseudoOutBlindedAssetId := new(edwards25519.Point).Add(sourceBlindedAssetId, new(edwards25519.Point).ScalarMult(pseudoOutAssetIdBlindingMask, zanocrypto.C_point_X))
+
 	//sig.pseudo_out_blinded_asset_id = (crypto::c_scalar_1div8 * pseudo_out_blinded_asset_id).to_public_key();
 	sig.PseudoOutBlindedAssetId = &zanobase.Point{new(edwards25519.Point).ScalarMult(zanocrypto.Sc1div8, pseudoOutBlindedAssetId)}
 
 	//ogc.real_in_asset_id_blinding_mask_x_amount_sum += se.real_out_asset_id_blinding_mask * se.amount;                                        // += r_i * a_i
 	addRefScalar(&ogc.RealInAssetIdBlindingMaskXAmountSum, new(edwards25519.Scalar).Multiply(src.RealOutAssetIdBlindingMask.Scalar, zanocrypto.ScalarInt(src.Amount)))
+
 	//ogc.pseudo_outs_blinded_asset_ids.emplace_back(pseudo_out_blinded_asset_id);
 	ogc.PseudoOutsBlindedAssetIds = append(ogc.PseudoOutsBlindedAssetIds, &zanobase.Point{pseudoOutBlindedAssetId})
+
 	//ogc.pseudo_outs_plus_real_out_blinding_masks.emplace_back(pseudo_out_asset_id_blinding_mask + se.real_out_asset_id_blinding_mask);
 	ogc.PseudoOutsPlusRealOutBlindingMasks = append(ogc.PseudoOutsPlusRealOutBlindingMasks, src.RealOutAssetIdBlindingMask)
 
@@ -107,6 +118,25 @@ func (src *TxSource) generateZCSig(sig *zanobase.ZCSig, txHashForSig []byte, ogc
 	//crypto::generate_CLSAG_GGX(tx_hash_for_signature, ring, pseudo_out_amount_commitment, pseudo_out_blinded_asset_id, in.k_image, in_context.in_ephemeral.sec,
 	//se.real_out_amount_blinding_mask - pseudo_out_amount_blinding_mask,
 	//-pseudo_out_asset_id_blinding_mask, in_context.real_out_index, sig.clsags_ggx);
+	//
+	// bool generate_CLSAG_GGX(const hash& m, const std::vector<CLSAG_GGX_input_ref_t>& ring, const point_t& pseudo_out_amount_commitment, const point_t& pseudo_out_blinded_asset_id, const key_image& ki,
+	// const scalar_t& secret_0_xp, const scalar_t& secret_1_f, const scalar_t& secret_2_t, uint64_t secret_index, CLSAG_GGX_signature& sig)
 
-	return nil
+	// ki = in.k_image,
+	// secret_0_xp = in_context.in_ephemeral.sec,
+	// secret_1_f = se.real_out_amount_blinding_mask - pseudo_out_amount_blinding_mask
+	// secret_2_t = -pseudo_out_asset_id_blinding_mask
+	// secret_index = in_context.real_out_index
+
+	// txin_zc_input& in = boost::get<txin_zc_input>(tx.vin[input_index]);
+
+	ki := in.KeyImage.Point
+	secret0xp := src.ephemeral.Sec.Scalar
+	secret1f := new(edwards25519.Scalar).Subtract(src.RealOutAmountBlindingMask.Scalar, pseudoOutAmountBlindingMask)
+	secret2t := new(edwards25519.Scalar).Negate(pseudoOutAssetIdBlindingMask)
+	sigggx, err := zanocrypto.GenerateCLSAG_GGX(txHashForSig, ring, ki, pseudoOutAmountCommitment, pseudoOutBlindedAssetId, secret0xp, secret1f, secret2t, src.RealOutput)
+
+	sig.GGX = sigggx
+
+	return err
 }
