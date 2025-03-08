@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 import (
 	"encoding/binary"
@@ -7,7 +7,6 @@ import (
 	"reflect"
 
 	"filippo.io/edwards25519"
-	"github.com/ModChain/zanolib/zanobase"
 )
 
 type byter interface {
@@ -44,7 +43,7 @@ func Serialize(w io.Writer, source any) error {
 	}
 	if t.Kind() == reflect.Slice {
 		ln := obj.Len()
-		_, err := w.Write(zanobase.Varint(ln).Bytes())
+		_, err := w.Write(Varint(ln).Bytes())
 		if err != nil {
 			return err
 		}
@@ -82,7 +81,7 @@ func subSerialize(w io.Writer, o any, tag string) error {
 		err = binary.Write(w, binary.LittleEndian, v)
 	case uint64:
 		if tag == "varint" {
-			_, err = w.Write(zanobase.Varint(v).Bytes())
+			_, err = w.Write(Varint(v).Bytes())
 		} else {
 			err = binary.Write(w, binary.LittleEndian, v)
 		}
@@ -90,21 +89,21 @@ func subSerialize(w io.Writer, o any, tag string) error {
 		_, err = w.Write(v[:])
 	case string:
 		ln := len(v)
-		_, err = w.Write(zanobase.Varint(ln).Bytes())
+		_, err = w.Write(Varint(ln).Bytes())
 		if err != nil {
 			return err
 		}
 		_, err = w.Write([]byte(v))
 	case []byte:
 		ln := len(v)
-		_, err = w.Write(zanobase.Varint(ln).Bytes())
+		_, err = w.Write(Varint(ln).Bytes())
 		if err != nil {
 			return err
 		}
 		_, err = w.Write(v)
 	case byter:
 		_, err = w.Write(v.Bytes())
-	case zanobase.Variant:
+	case Variant:
 		_, err = w.Write([]byte{byte(v.Tag)})
 		if err != nil {
 			return err

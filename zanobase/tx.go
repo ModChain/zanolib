@@ -1,5 +1,7 @@
 package zanobase
 
+import "golang.org/x/crypto/sha3"
+
 type TransactionPrefix struct {
 	Version Varint     `json:"version"` // varint, ==2
 	Vin     []*Variant `json:"vin"`     // txin_v = boost::variant<txin_gen[0], txin_to_key[1], txin_multisig[2], txin_htlc[34], txin_zc_input[37]>
@@ -20,4 +22,11 @@ type Transaction struct {
 
 func (tx *Transaction) Prefix() *TransactionPrefix {
 	return &TransactionPrefix{tx.Version, tx.Vin, tx.Extra, tx.Vout}
+}
+
+// Hash of a transaction prefix. Can fail if the variants contains invalid data
+func (txp *TransactionPrefix) Hash() ([]byte, error) {
+	h := sha3.NewLegacyKeccak256()
+	err := Serialize(h, txp)
+	return h.Sum(nil), err
 }

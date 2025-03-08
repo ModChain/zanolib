@@ -32,7 +32,7 @@ func ParseFinalized(buf, viewSecretKey []byte) (*FinalizedTx, error) {
 	//log.Printf("decoded buffer:\n%s", hex.Dump(buf))
 	r := bytes.NewReader(buf)
 	res := new(FinalizedTx)
-	err = Deserialize(r, res)
+	err = zanobase.Deserialize(r, res)
 	if err != nil {
 		return nil, err
 	}

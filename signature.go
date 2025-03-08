@@ -10,6 +10,7 @@ import (
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
+	"github.com/ModChain/zanolib/zanoproof"
 )
 
 var (
@@ -204,7 +205,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 	// generate proofs and signatures
 	// (any changes made below should only affect the signatures/proofs and should not impact the prefix hash calculation)
 
-	txId, err := GetTransactionPrefixHash(tx)
+	txId, err := tx.Prefix().Hash()
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +216,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 			// r = generate_ZC_sig(tx_hash_for_signature, i_ + input_starter_index, source_entry, in_contexts[i_mapped], sender_account_keys, flags, gen_context, tx, i_ + 1 == sources.size(), separately_signed_tx_complete)
 			sig := new(zanobase.ZCSig)
 
-			txHashForSig, err := PreparePrefixHashForSign(tx, n, txId)
+			txHashForSig, err := zanocrypto.PreparePrefixHashForSign(tx, n, txId)
 			if err != nil {
 				return nil, err
 			}
@@ -223,6 +224,22 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 			tx.Signatures = append(tx.Signatures, &zanobase.Variant{Tag: zanobase.TagZCSig, Value: sig})
 		}
 	}
+
+	// proofs (transaction-wise, not pre-input)
+	// if (tx.version > TRANSACTION_VERSION_PRE_HF4 && (append_mode || (flags & TX_FLAG_SIGNATURE_MODE_SEPARATE) == 0))
+
+	// asset surjection proof
+	//bool r = generate_asset_surjection_proof(tx_prefix_hash, has_non_zc_inputs, gen_context, asp);
+	err = zanoproof.GenerateAssetSurjectionProof(tx, ogc)
+	if err != nil {
+		return nil, fmt.Errorf("while generating asset surjection proof: %w", err)
+	}
+
+	// range proofs
+	// r = generate_zc_outs_range_proof(tx_prefix_hash, gen_context, tx.vout, range_proofs)
+
+	// balance proof
+	// r = generate_tx_balance_proof(tx, tx_prefix_hash, gen_context, 0, balance_proof)
 
 	return res, nil
 }

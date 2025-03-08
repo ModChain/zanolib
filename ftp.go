@@ -42,7 +42,7 @@ func ParseFTP(buf, viewSecretKey []byte) (*FinalizeTxParam, error) {
 	r := bytes.NewReader(buf)
 	res := new(FinalizeTxParam)
 
-	err = Deserialize(r, res)
+	err = zanobase.Deserialize(r, res)
 	if err != nil {
 		return nil, err
 	}

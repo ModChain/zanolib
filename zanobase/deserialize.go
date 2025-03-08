@@ -1,4 +1,4 @@
-package zanolib
+package zanobase
 
 import (
 	"bufio"
@@ -9,13 +9,12 @@ import (
 
 	"filippo.io/edwards25519"
 	"github.com/KarpelesLab/rc"
-	"github.com/ModChain/zanolib/zanobase"
 )
 
 var (
 	readerFromType = reflect.TypeFor[io.ReaderFrom]()
 	byteArrayType  = reflect.TypeFor[[]byte]()
-	variantType    = reflect.TypeFor[zanobase.Variant]()
+	variantType    = reflect.TypeFor[Variant]()
 )
 
 // Deserialize implements epee deserializer (kind of)
@@ -54,7 +53,7 @@ func Deserialize(rx io.Reader, target any) error {
 		return subDeserialize(buf, obj.Addr().Interface(), "!")
 	}
 	if t.Kind() == reflect.Slice {
-		ln, err := zanobase.VarintReadUint64(buf)
+		ln, err := VarintReadUint64(buf)
 		if err != nil {
 			return err
 		}
@@ -97,14 +96,14 @@ func subDeserialize(r rc.ByteAndReadReader, o any, tag string) error {
 		err = binary.Read(r, binary.LittleEndian, v)
 	case *uint64:
 		if tag == "varint" {
-			*v, err = zanobase.VarintReadUint64(r)
+			*v, err = VarintReadUint64(r)
 		} else {
 			err = binary.Read(r, binary.LittleEndian, v)
 		}
 	case *[32]byte:
 		_, err = io.ReadFull(r, v[:])
 	case *string:
-		ln, err := zanobase.VarintReadUint64(r)
+		ln, err := VarintReadUint64(r)
 		if err != nil {
 			return err
 		}
@@ -119,7 +118,7 @@ func subDeserialize(r rc.ByteAndReadReader, o any, tag string) error {
 		*v = string(buf)
 		return nil
 	case *[]byte:
-		ln, err := zanobase.VarintReadUint64(r)
+		ln, err := VarintReadUint64(r)
 		if err != nil {
 			return err
 		}
@@ -132,12 +131,12 @@ func subDeserialize(r rc.ByteAndReadReader, o any, tag string) error {
 			return err
 		}
 		return nil
-	case *zanobase.Variant:
+	case *Variant:
 		tagV, err := r.ReadByte()
 		if err != nil {
 			return err
 		}
-		tag := zanobase.Tag(tagV)
+		tag := Tag(tagV)
 		v.Tag = tag
 		typ := tag.Type()
 		obj := reflect.New(typ)
