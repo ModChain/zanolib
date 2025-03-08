@@ -49,7 +49,7 @@ func Serialize(w io.Writer, source any) error {
 			return err
 		}
 		for i := 0; i < ln; i++ {
-			err = Serialize(w, obj.Index(i))
+			err = Serialize(w, obj.Index(i).Interface())
 			if err != nil {
 				return err
 			}
@@ -63,6 +63,9 @@ func Serialize(w io.Writer, source any) error {
 	nf := t.NumField()
 	for i := 0; i < nf; i += 1 {
 		tf := t.Field(i)
+		if !tf.IsExported() {
+			continue
+		}
 		tag := tf.Tag.Get("epee")
 		err := subSerialize(w, obj.Field(i).Interface(), tag)
 		if err != nil {
@@ -99,6 +102,8 @@ func subSerialize(w io.Writer, o any, tag string) error {
 			return err
 		}
 		_, err = w.Write(v)
+	case byter:
+		_, err = w.Write(v.Bytes())
 	case zanobase.Variant:
 		_, err = w.Write([]byte{byte(v.Tag)})
 		if err != nil {

@@ -16,7 +16,20 @@ func newClsagHash() *clsagHash {
 }
 
 func (c *clsagHash) addBytes(b []byte) {
+	if len(b) != 32 {
+		panic("addbytes expect 32 bytes")
+	}
 	c.h.Write(b)
+}
+
+func (c *clsagHash) addBytesModL(b []byte) {
+	if len(b) != 32 {
+		panic("addbytes expect 32 bytes")
+	}
+	var wide [64]byte
+	copy(wide[:], b)
+	sc, _ := new(edwards25519.Scalar).SetUniformBytes(wide[:])
+	c.addScalarBytes(sc)
 }
 
 func (c *clsagHash) addPointBytes(p *edwards25519.Point) {
@@ -34,4 +47,10 @@ func (c *clsagHash) calcHash() *edwards25519.Scalar {
 	copy(buf64[:], res)
 	pt, _ := new(edwards25519.Scalar).SetUniformBytes(buf64[:])
 	return pt
+}
+
+func (c *clsagHash) calcRawHash() []byte {
+	res := c.h.Sum(nil)
+	c.h.Reset()
+	return res
 }

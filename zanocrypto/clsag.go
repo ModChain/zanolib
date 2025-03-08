@@ -1,6 +1,7 @@
 package zanocrypto
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 
@@ -24,34 +25,47 @@ type CLSAG_GGXInputRef struct {
 func GenerateCLSAG_GGX(
 	m []byte,
 	ring []CLSAG_GGXInputRef,
-	pseudoOutAmountCommitment, pseudoOutBlindedAssetID, ki *edwards25519.Point,
+	ki *edwards25519.Point,
+	pseudoOutAmountCommitment, pseudoOutBlindedAssetID *edwards25519.Point,
 	secret0Xp, secret1F, secret2T *edwards25519.Scalar,
-	secretIndex int,
+	secretIndex uint64,
 ) (*zanobase.CLSAG_Sig, error) {
+	sig := new(zanobase.CLSAG_Sig)
 
 	ringSize := len(ring)
 	if ringSize == 0 {
 		return nil, errors.New("ring size is zero")
 	}
-	if secretIndex < 0 || secretIndex >= ringSize {
+	if secretIndex < 0 || secretIndex >= uint64(ringSize) {
 		return nil, errors.New("secretIndex out of range")
 	}
 
 	// 1) Calculate ki_base = hash_helper_t::hp(ring[secretIndex].stealth_address).
-	//    In your C++ code, ring[secretIndex].stealth_address is a point, but then you do hp(...) again,
-	//    so presumably it's "HashToPoint(serialized_stealth_address)" or something.  Adjust as needed.
 	stealthBytes := ring[secretIndex].StealthAddress.Bytes()
-	kiBase := HashToPoint(stealthBytes)
+	kiBase := Hp(stealthBytes)
 
 	// 2) key_image = secret_0_xp * ki_base
 	keyImage := new(edwards25519.Point).ScalarMult(secret0Xp, kiBase)
+
+	// sanity check, mostly useful for debugging
+	if !bytes.Equal(keyImage.Bytes(), ki.Bytes()) {
+		return nil, errors.New("CLSAG_GGX keyImage mismatch")
+	}
+	if !bytes.Equal(new(edwards25519.Point).ScalarMult(secret0Xp, C_point_G).Bytes(), ring[secretIndex].StealthAddress.Bytes()) {
+		return nil, errors.New("CLSAG_GGX secret_0_xp mismatch")
+	}
+	if !bytes.Equal(new(edwards25519.Point).ScalarMult(secret1F, C_point_G).Bytes(), new(edwards25519.Point).Subtract(new(edwards25519.Point).ScalarMult(ScalarInt(8), ring[secretIndex].AmountCommitment), pseudoOutAmountCommitment).Bytes()) {
+		return nil, errors.New("CLSAG_GGX secret_1_f mismatch")
+	}
+	if !bytes.Equal(new(edwards25519.Point).ScalarMult(secret2T, C_point_X).Bytes(), new(edwards25519.Point).Subtract(new(edwards25519.Point).ScalarMult(ScalarInt(8), ring[secretIndex].BlindedAssetID), pseudoOutBlindedAssetID).Bytes()) {
+		return nil, errors.New("CLSAG_GGX secret_2_t mismatch")
+	}
 
 	// 3) K1_div8 = (1/8 * secret_1_f) * ki_base
 	tmp1 := new(edwards25519.Scalar).Multiply(Sc1div8, secret1F) // sc = c_scalar_1div8 * secret_1_f
 	K1_div8 := new(edwards25519.Point).ScalarMult(tmp1, kiBase)
 
 	// Save as sig.K1 (the "public key" portion) => i.e. K1_div8 as a "public key"
-	sig := &zanobase.CLSAG_Sig{}
 	sig.K1 = &zanobase.Point{new(edwards25519.Point).Set(K1_div8)}
 
 	// Then K1 = K1_div8; K1.modify_mul8() => multiply by 8
@@ -67,19 +81,19 @@ func GenerateCLSAG_GGX(
 	// Then K2 = K2_div8; K2.modify_mul8()
 	K2 := new(edwards25519.Point).ScalarMult(ScalarInt(8), K2_div8)
 
-	//----------------------------------------------------------------
-	// Next: build up the aggregator hash (the "input_hash")
-	//----------------------------------------------------------------
+	// hash_helper_t::hs_t hsc(4 + 3  * ring_size);
 	hsc := newClsagHash()
 
 	// hsc.add_scalar(m) was in C++.  We'll just add m (a raw hash?) as bytes:
-	hsc.addBytes(m)
+	//hsc.addBytes(m)
+	hsc.addBytesModL(m)
 
 	// for each ring item, add stealth_address, amount_commitment, blinded_asset_id
 	for i := 0; i < ringSize; i++ {
 		hsc.addPointBytes(ring[i].StealthAddress)
 		hsc.addPointBytes(ring[i].AmountCommitment)
 		hsc.addPointBytes(ring[i].BlindedAssetID)
+		//log.Printf("ring[%d]: sa:%x ac:%x baid:%x", i, ring[i].StealthAddress.Bytes(), ring[i].AmountCommitment.Bytes(), ring[i].BlindedAssetID.Bytes())
 	}
 	// also add c_scalar_1div8 * pseudoOutAmountCommitment
 	tmpPoint := new(edwards25519.Point).ScalarMult(Sc1div8, pseudoOutAmountCommitment)
@@ -96,7 +110,7 @@ func GenerateCLSAG_GGX(
 
 	// input_hash = hsc.calc_hash_no_reduce() in your code
 	// We'll assume a single calcHash() usage
-	inputHash := hsc.calcHash()
+	inputHash := hsc.calcRawHash()
 
 	// For each "layer", you appended some domain-separation bytes, then hashed again.
 	// We'll do something like:
@@ -106,15 +120,15 @@ func GenerateCLSAG_GGX(
 	//
 	// In Go, do something similar:
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_0)
-	hsc.addScalarBytes(inputHash) // FIXME check if this doesn't cause issues to mod l the hash
+	hsc.addBytes(inputHash) // FIXME check if this doesn't cause issues to mod l the hash
 	aggCoeff0 := hsc.calcHash()
 
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_1)
-	hsc.addScalarBytes(inputHash)
+	hsc.addBytes(inputHash)
 	aggCoeff1 := hsc.calcHash()
 
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_2)
-	hsc.addScalarBytes(inputHash)
+	hsc.addBytes(inputHash)
 	aggCoeff2 := hsc.calcHash()
 
 	//----------------------------------------------------------------
@@ -126,6 +140,8 @@ func GenerateCLSAG_GGX(
 	for i := 0; i < ringSize; i++ {
 		Ai[i] = new(edwards25519.Point).ScalarMult(ScalarInt(8), ring[i].AmountCommitment)
 		Qi[i] = new(edwards25519.Point).ScalarMult(ScalarInt(8), ring[i].BlindedAssetID)
+
+		//log.Printf("A_i[%d] = %x  Q_i[%d] = %x", i, Ai[i].Bytes(), i, Qi[i].Bytes())
 	}
 
 	//----------------------------------------------------------------
@@ -141,10 +157,12 @@ func GenerateCLSAG_GGX(
 		diff := new(edwards25519.Point).Subtract(Ai[i], pseudoOutAmountCommitment)
 		term2 := new(edwards25519.Point).ScalarMult(aggCoeff1, diff)
 		WpubG[i] = new(edwards25519.Point).Add(term1, term2)
+		//log.Printf("WpubG[%d] = %x", i, WpubG[i].Bytes())
 
 		// W_pub_keys_x[i] = agg_coeff_2*(Qi[i] - pseudoOutBlindedAssetID)
 		diff2 := new(edwards25519.Point).Subtract(Qi[i], pseudoOutBlindedAssetID)
 		WpubX[i] = new(edwards25519.Point).ScalarMult(aggCoeff2, diff2)
+		//log.Printf("WpubX[%d] = %x", i, WpubX[i].Bytes())
 	}
 
 	//----------------------------------------------------------------
@@ -157,6 +175,19 @@ func GenerateCLSAG_GGX(
 	// w_sec_key_x = agg_coeff_2*secret_2_t
 	wSecKeyX := new(edwards25519.Scalar).Multiply(aggCoeff2, secret2T)
 
+	wSecKeyGmul := new(edwards25519.Point).ScalarMult(wSecKeyG, C_point_G)
+	wSecKeyXmul := new(edwards25519.Point).ScalarMult(wSecKeyX, C_point_X)
+
+	//log.Printf("w_sec_key_g * c_point_G: %x", wSecKeyGmul.Bytes())
+	//log.Printf("w_sec_key_x * c_point_X: %x", wSecKeyXmul.Bytes())
+
+	if !bytes.Equal(wSecKeyGmul.Bytes(), WpubG[secretIndex].Bytes()) {
+		return nil, errors.New("CLSAG_GGX w_sec_key_g mismatch")
+	}
+	if !bytes.Equal(wSecKeyXmul.Bytes(), WpubX[secretIndex].Bytes()) {
+		return nil, errors.New("CLSAG_GGX w_sec_key_x mismatch")
+	}
+
 	//----------------------------------------------------------------
 	// Aggregate key images
 	//----------------------------------------------------------------
@@ -165,8 +196,12 @@ func GenerateCLSAG_GGX(
 	WkeyImageGPart2 := new(edwards25519.Point).ScalarMult(aggCoeff1, K1)
 	WkeyImageG := new(edwards25519.Point).Add(WkeyImageGPart1, WkeyImageGPart2)
 
+	//log.Printf("W_key_image_g: %x", WkeyImageG.Bytes())
+
 	// W_key_image_x = agg_coeff_2*K2
 	WkeyImageX := new(edwards25519.Point).ScalarMult(aggCoeff2, K2)
+
+	//log.Printf("W_key_image_x: %x", WkeyImageX.Bytes())
 
 	//----------------------------------------------------------------
 	// Initial commitment: alpha_g, alpha_x are random scalars
@@ -175,20 +210,18 @@ func GenerateCLSAG_GGX(
 	alphaX := RandomScalar(rand.Reader)
 
 	// c_prev = Hs(input_hash, alpha_g*G, alpha_g*ki_base, alpha_x*X, alpha_x*ki_base)
-	// We'll reuse the hasher or create a new one (depending on your approach).
-	hsc = newClsagHash()
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
-	hsc.addScalarBytes(inputHash)
+	hsc.addBytes(inputHash)
 
 	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaG, C_point_G))
 	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaG, kiBase))
 	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaX, C_point_X))
 	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaX, kiBase))
+	//log.Printf("c[%d] = Hs(ih, %x, )", secretIndex, new(edwards25519.Point).ScalarMult(alphaG, C_point_G), )
 	cPrev := hsc.calcHash()
+	//log.Printf("cPrev = %x", cPrev.Bytes())
 
-	//----------------------------------------------------------------
-	// Initialize sig.Rg and sig.Rx with random scalars (just like the C++ code)
-	//----------------------------------------------------------------
+	// Initialize sig.Rg and sig.Rx with random scalars
 	sig.Rg = make([]*zanobase.Scalar, ringSize)
 	sig.Rx = make([]*zanobase.Scalar, ringSize)
 	for i := 0; i < ringSize; i++ {
@@ -196,11 +229,10 @@ func GenerateCLSAG_GGX(
 		sig.Rx[i] = &zanobase.Scalar{RandomScalar(rand.Reader)}
 	}
 
-	//----------------------------------------------------------------
 	// The main ring loop
-	//----------------------------------------------------------------
-	i := (secretIndex + 1) % ringSize
+	i := (int(secretIndex) + 1) % ringSize
 	for j := 0; j < ringSize-1; j++ {
+		//log.Printf("c[%d] = %x", i, cPrev.Bytes())
 		// if i == 0 => sig.c = cPrev
 		if i == 0 {
 			sig.C = &zanobase.Scalar{new(edwards25519.Scalar).Set(cPrev)}
@@ -211,8 +243,8 @@ func GenerateCLSAG_GGX(
 		//                        r_x[i]*X + c_prev*W_pub_keys_x[i],
 		//                        r_x[i]*hp(ring[i].stealth_address) + c_prev*W_key_image_x )
 		hsc = newClsagHash()
-		hsc.addBytes([]byte("CRYPTO_HDS_CLSAG_GGX_CHALLENGE"))
-		hsc.addScalarBytes(inputHash)
+		hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
+		hsc.addBytes(inputHash)
 
 		// 1) r_g[i]*G + c_prev*W_pub_keys_g[i]
 		rgG := new(edwards25519.Point).ScalarMult(sig.Rg[i].Scalar, C_point_G)
@@ -221,7 +253,7 @@ func GenerateCLSAG_GGX(
 
 		// 2) r_g[i]*hp(stealth) + c_prev*W_key_image_g
 		stealthBytes2 := ring[i].StealthAddress.Bytes()
-		hpI := HashToPoint(stealthBytes2)
+		hpI := Hp(stealthBytes2)
 
 		rgHp := new(edwards25519.Point).ScalarMult(sig.Rg[i].Scalar, hpI)
 		cwikg := new(edwards25519.Point).ScalarMult(cPrev, WkeyImageG)
