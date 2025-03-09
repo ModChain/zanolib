@@ -237,6 +237,10 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	// range proofs
 	// r = generate_zc_outs_range_proof(tx_prefix_hash, gen_context, tx.vout, range_proofs)
+	err = zanoproof.GenerateZcOutsRangeProof(tx, txId, ogc)
+	if err != nil {
+		return nil, fmt.Errorf("while generating zc outs range proof: %w", err)
+	}
 
 	// balance proof
 	// r = generate_tx_balance_proof(tx, tx_prefix_hash, gen_context, 0, balance_proof)

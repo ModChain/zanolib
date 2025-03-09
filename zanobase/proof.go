@@ -8,10 +8,10 @@ type ZCOutsRangeProof struct {
 }
 
 type UGAggProof struct {
-	AmountCommitmentsForRPAgg []Value256 // std::vector<public_key> E' = e * U + y' * G, premultiplied by 1/8
-	Y0s                       []Value256 // scalar_vec_t
-	Y1s                       []Value256 // scalar_vec_t
-	C                         Value256   // common challenge
+	AmountCommitmentsForRPAgg []*Point  `json:"amount_commitments_for_rp_aggregation"` // std::vector<public_key> E' = e * U + y' * G, premultiplied by 1/8
+	Y0s                       []*Scalar `json:"y0s"`                                   // scalar_vec_t
+	Y1s                       []*Scalar `json:"y1s"`                                   // scalar_vec_t
+	C                         *Scalar   `json:"c"`                                     // common challenge
 }
 
 // First part of a double Schnorr proof:

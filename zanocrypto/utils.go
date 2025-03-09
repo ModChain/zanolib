@@ -1,6 +1,8 @@
 package zanocrypto
 
 import (
+	"reflect"
+
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 )
@@ -35,4 +37,24 @@ func addRefPoint(v **zanobase.Point, a *edwards25519.Point) {
 		return
 	}
 	(*v).Point = new(edwards25519.Point).Add((*v).Point, a)
+}
+
+func matAdd[T interface{ Add(a, b T) T }](m []T, v T) []T {
+	res := make([]T, len(m))
+	t := reflect.TypeFor[T]().Elem()
+	for n, s := range m {
+		tmp := reflect.New(t).Interface().(T)
+		res[n] = tmp.Add(s, v)
+	}
+	return res
+}
+
+func matSub[T interface{ Subtract(a, b T) T }](m []T, v T) []T {
+	res := make([]T, len(m))
+	t := reflect.TypeFor[T]().Elem()
+	for n, s := range m {
+		tmp := reflect.New(t).Interface().(T)
+		res[n] = tmp.Subtract(s, v)
+	}
+	return res
 }
