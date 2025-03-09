@@ -103,7 +103,6 @@ func (w *Wallet) Sign(rnd io.Reader, ftp *FinalizeTxParam, oneTimeKey []byte) (*
 			return nil, errors.New("derived public key missmatch with output public key!")
 		}
 		// key image
-		//slices.Reverse(in_e_sec[:])
 		keyImage, err := zanocrypto.ComputeKeyImage(in_e_sec, in_e_pub)
 		if err != nil {
 			return nil, err

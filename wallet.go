@@ -1,9 +1,11 @@
 package zanolib
 
 import (
+	"bytes"
 	"slices"
 
 	"filippo.io/edwards25519"
+	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
 	"golang.org/x/crypto/sha3"
 )
@@ -81,4 +83,20 @@ func (w *Wallet) ParseFinalized(buf []byte) (*FinalizedTx, error) {
 	// buf is encrypted using chacha8 xor initialized with the view private key
 	key := w.ViewPrivKey.Bytes()
 	return ParseFinalized(buf, key)
+}
+
+// Encrypt will serialize and encrypt whatever data is passed (can be a FTP or a finalized transaction)
+// so it can be read again.
+func (w *Wallet) Encrypt(data any) ([]byte, error) {
+	out := &bytes.Buffer{}
+	err := zanobase.Serialize(out, data)
+	if err != nil {
+		return nil, err
+	}
+	key := w.ViewPrivKey.Bytes()
+	buf, err := zanocrypto.ChaCha8(key, make([]byte, 8), out.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	return buf, nil
 }
