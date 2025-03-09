@@ -19,8 +19,8 @@ type Wallet struct {
 }
 
 // LoadSpendSecret initializesd a Wallet based on a spend secret as found in
-// zano if you run spendkey. Note that zano's displayed key is in little endian
-// so this function will reverse the bytes for you.
+// zano if you run spendkey. It will automatically derive the view key using
+// the appropriate method for Zano.
 //
 // Set flags to zero for normal keys, or 1 for auditable keys.
 func LoadSpendSecret(pk []byte, flags uint8) (*Wallet, error) {
