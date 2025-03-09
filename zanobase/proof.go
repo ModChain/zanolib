@@ -27,7 +27,7 @@ type ZCBalanceProof struct {
 }
 
 type GenericDoubleSchnorrSig struct {
-	C  Value256
-	Y0 Value256
-	Y1 Value256
+	C  *Scalar
+	Y0 *Scalar
+	Y1 *Scalar
 }

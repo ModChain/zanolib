@@ -170,10 +170,15 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 			vout.MixAttr = 1 // CURRENCY_TO_KEY_OUT_FORCED_NO_MIX
 		}
 
+		// gen_context.amounts[output_index] = dst_entr.amount
 		ogc.Amounts[i] = &zanobase.Scalar{zanocrypto.ScalarInt(dst.Amount)}
+		// gen_context.asset_ids[output_index] = crypto::point_t(dst_entr.asset_id)
 		ogc.AssetIds[i] = dst.AssetId
-		addRefScalar(&ogc.AssetIdBlindingMaskXAmountSum, zanocrypto.ScalarInt(dst.Amount))
+		// gen_context.asset_id_blinding_mask_x_amount_sum += gen_context.asset_id_blinding_masks[output_index] * dst_entr.amount
+		addRefScalar(&ogc.AssetIdBlindingMaskXAmountSum, new(edwards25519.Scalar).Multiply(ogc.AssetIdBlindingMasks[i].Scalar, zanocrypto.ScalarInt(dst.Amount)))
+		// gen_context.amount_blinding_masks_sum += gen_context.amount_blinding_masks[output_index]
 		addRefScalar(&ogc.AmountBlindingMasksSum, ogc.AmountBlindingMasks[i].Scalar)
+		// gen_context.amount_commitments_sum += gen_context.amount_commitments[output_index]
 		addRefPoint(&ogc.AmountCommitmentsSum, ogc.AmountCommitments[i].Point)
 
 		tx.Vout = append(tx.Vout, zanobase.VariantFor(vout))
@@ -244,6 +249,10 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	// balance proof
 	// r = generate_tx_balance_proof(tx, tx_prefix_hash, gen_context, 0, balance_proof)
+	err = zanoproof.GenerateTxBalanceProof(tx, txId, ogc, 0)
+	if err != nil {
+		return nil, fmt.Errorf("while generating tx balance proof: %w", err)
+	}
 
 	return res, nil
 }

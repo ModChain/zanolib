@@ -3,7 +3,6 @@ package zanocrypto
 import (
 	"crypto/rand"
 	"errors"
-	"log"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
@@ -54,7 +53,7 @@ func GenerateVectorUgAggregationProof(contextHash []byte, uSecrets, gSecrets0, g
 	hash_calculator.add(bter(amountCommitments)...)
 	hash_calculator.add(bter(amountCommitmentsForRpAggregation)...)
 	w := hash_calculator.calcHashKeep() // don't clean the buffer
-	log.Printf("w = %x", w.Bytes())
+	//log.Printf("w = %x", w.Bytes())
 
 	// for(size_t j = 0; j < n; ++j)
 	// CHECK_AND_FAIL_WITH_ERROR_IF_FALSE(amount_commitments[j] + w * amount_commitments_for_rp_aggregation[j] == u_secrets[j] * (blinded_asset_ids[j] + w * c_point_U) + (g_secrets0[j] + w * g_secrets1[j]) * c_point_G, 20)
@@ -98,5 +97,26 @@ func GenerateVectorUgAggregationProof(contextHash []byte, uSecrets, gSecrets0, g
 		res.AmountCommitmentsForRPAgg = append(res.AmountCommitmentsForRPAgg, &zanobase.Point{new(edwards25519.Point).ScalarMult(Sc1div8, amountCommitmentsForRpAggregation[j])})
 	}
 
+	return res, nil
+}
+
+func GenerateDoubleSchnorrSig(gen0, gen1 *edwards25519.Point, m []byte, A *edwards25519.Point, secret_a *edwards25519.Scalar, B *edwards25519.Point, secret_b *edwards25519.Scalar) (*zanobase.GenericDoubleSchnorrSig, error) {
+	r0 := RandomScalar(rand.Reader)
+	r1 := RandomScalar(rand.Reader)
+	R0 := new(edwards25519.Point).ScalarMult(r0, gen0)
+	R1 := new(edwards25519.Point).ScalarMult(r1, gen1)
+	hsc := newClsagHash()
+	hsc.addBytes(m)
+	hsc.add(A, B, R0, R1)
+	C := hsc.calcHash()
+	// y0 = r0 - c * secret_a
+	Y0 := new(edwards25519.Scalar).Subtract(r0, new(edwards25519.Scalar).Multiply(C, secret_a))
+	// y1 = r1 - c * secret_b
+	Y1 := new(edwards25519.Scalar).Subtract(r1, new(edwards25519.Scalar).Multiply(C, secret_b))
+	res := &zanobase.GenericDoubleSchnorrSig{
+		C:  &zanobase.Scalar{C},
+		Y0: &zanobase.Scalar{Y0},
+		Y1: &zanobase.Scalar{Y1},
+	}
 	return res, nil
 }

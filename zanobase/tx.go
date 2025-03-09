@@ -30,3 +30,13 @@ func (txp *TransactionPrefix) Hash() ([]byte, error) {
 	err := Serialize(h, txp)
 	return h.Sum(nil), err
 }
+
+func (tx *Transaction) GetFee() (uint64, bool) {
+	// simple get fee: tx.Extra should contain a ZarcaniumTxDataV1
+	for _, e := range tx.Extra {
+		if e.Tag == TagZarcaniumTxDataV1 {
+			return e.Value.(*ZarcaniumTxDataV1).Fee, true
+		}
+	}
+	return 0, false
+}
