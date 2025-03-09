@@ -17,6 +17,7 @@ This library is able to load unsigned transactions. There are however a few cave
 
 ```go
 // first, initialize a wallet based on a securely stored secret
+// note: set flag to 1 if this is an auditable wallet
 wallet, err := zanolib.LoadSpendSecret(secret, 0)
 if err != nil {
     // ...
