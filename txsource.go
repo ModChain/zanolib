@@ -77,7 +77,8 @@ func (src *TxSource) generateZCSig(tx *zanobase.Transaction, inputIndex int, sig
 	ogc.PseudoOutsBlindedAssetIds = append(ogc.PseudoOutsBlindedAssetIds, &zanobase.Point{pseudoOutBlindedAssetId})
 
 	//ogc.pseudo_outs_plus_real_out_blinding_masks.emplace_back(pseudo_out_asset_id_blinding_mask + se.real_out_asset_id_blinding_mask);
-	ogc.PseudoOutsPlusRealOutBlindingMasks = append(ogc.PseudoOutsPlusRealOutBlindingMasks, src.RealOutAssetIdBlindingMask)
+	pseudoPlusRealMask := new(edwards25519.Scalar).Add(pseudoOutAssetIdBlindingMask, src.RealOutAssetIdBlindingMask.Scalar)
+	ogc.PseudoOutsPlusRealOutBlindingMasks = append(ogc.PseudoOutsPlusRealOutBlindingMasks, &zanobase.Scalar{pseudoPlusRealMask})
 
 	//crypto::point_t pseudo_out_amount_commitment = se.amount * source_blinded_asset_id + pseudo_out_amount_blinding_mask * crypto::c_point_G; // A^p_i = a_i * T_i + f'_i * G
 	pseudoOutAmountCommitment := new(edwards25519.Point).VarTimeDoubleScalarBaseMult(zanocrypto.ScalarInt(src.Amount), sourceBlindedAssetId, pseudoOutAmountBlindingMask)

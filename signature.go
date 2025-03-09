@@ -230,7 +230,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	// asset surjection proof
 	//bool r = generate_asset_surjection_proof(tx_prefix_hash, has_non_zc_inputs, gen_context, asp);
-	err = zanoproof.GenerateAssetSurjectionProof(tx, ogc)
+	err = zanoproof.GenerateAssetSurjectionProof(tx, txId, ogc)
 	if err != nil {
 		return nil, fmt.Errorf("while generating asset surjection proof: %w", err)
 	}
