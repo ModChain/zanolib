@@ -18,7 +18,7 @@ var (
 	CRYPTO_HDS_OUT_AMOUNT_BLINDING_MASK = []byte("ZANO_HDS_OUT_AMOUNT_BLIND_MASK_\x00")
 )
 
-func (w *Wallet) Sign(rnd io.Reader, ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
+func (w *Wallet) Sign(rnd io.Reader, ftp *FinalizeTxParam, oneTimeKey *edwards25519.Scalar) (*FinalizedTx, error) {
 	if !bytes.Equal(ftp.SpendPubKey.Bytes(), w.SpendPubKey.Bytes()) {
 		return nil, errors.New("spend key does not match")
 	}
@@ -46,14 +46,13 @@ func (w *Wallet) Sign(rnd io.Reader, ftp *FinalizeTxParam, oneTimeKey []byte) (*
 
 	// construct tx uses some method to get an intial value?
 	if oneTimeKey == nil {
-		priv := zanocrypto.GenerateKeyScalar()
-		oneTimeKey = priv.Bytes()
+		oneTimeKey = zanocrypto.GenerateKeyScalar()
 	}
 
-	copy(res.OneTimeKey[:], oneTimeKey)
-
-	priv := must(new(edwards25519.Scalar).SetCanonicalBytes(oneTimeKey))
+	priv := oneTimeKey
 	pub := zanocrypto.PubFromPriv(priv)
+
+	res.OneTimeKey = &zanobase.Scalar{priv}
 	ogc.TxPubKeyP = &zanobase.Point{pub}
 	ogc.TxKey = &zanobase.KeyPair{Sec: &zanobase.Scalar{priv}, Pub: &zanobase.Point{pub}}
 	var pubV zanobase.Value256

@@ -12,7 +12,7 @@ import (
 type FinalizedTx struct {
 	Tx             *zanobase.Transaction     `json:"tx"`
 	TxId           zanobase.Value256         `json:"txid"`         // might be zeroes?
-	OneTimeKey     zanobase.Value256         `json:"one_time_key"` // crypto::secret_key
+	OneTimeKey     *zanobase.Scalar          `json:"one_time_key"` // crypto::secret_key
 	FTP            *FinalizeTxParam          `json:"ftp"`
 	HtlcOrigin     string                    `json:"htlc_origin"`
 	OutsKeyImages  []*zanobase.KeyImageIndex `json:"outs_key_images,omitempty"` // pairs (out_index, key_image) for each change output
