@@ -1,7 +1,7 @@
 package zanocrypto
 
 import (
-	"crypto/rand"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
@@ -12,7 +12,7 @@ import (
 // template<typename gen_trait_t, size_t N = 64, size_t values_max = 32>
 // src/crypto/range_proof_bpp.h
 
-func (trait *Trait) BPPGen(values, masks []*edwards25519.Scalar, commitments_1div8 []*edwards25519.Point) (*zanobase.BPPSignature, error) {
+func (trait *Trait) BPPGen(rnd io.Reader, values, masks []*edwards25519.Scalar, commitments_1div8 []*edwards25519.Point) (*zanobase.BPPSignature, error) {
 	// Note: commitments_1div8 are supposed to be already calculated
 
 	c_bpp_log2_m := ceilLog2(len(values))
@@ -62,7 +62,7 @@ func (trait *Trait) BPPGen(values, masks []*edwards25519.Scalar, commitments_1di
 	// BP+ paper, page 15: The prover begins with sending A = g^aL h^aR h^alpha (group element)
 	// so we calculate A0 = alpha * H + SUM(aL_i * G_i) + SUM(aR_i * H_i)
 
-	alpha := RandomScalar(rand.Reader)
+	alpha := RandomScalar(rnd)
 	// const point_t& bpp_ct_generators_HGX::bpp_H   = c_point_G
 	A0 := new(edwards25519.Point).ScalarMult(alpha, C_point_G)
 
@@ -188,8 +188,8 @@ func (trait *Trait) BPPGen(values, masks []*edwards25519.Scalar, commitments_1di
 	for n, ni := c_bpp_mn/2, 0; n >= 1; n, ni = n/2, ni+1 {
 		//log.Printf("#%d (n=%d)", ni, n)
 		// zk-WIP(g, h, G, H, P, a, b, alpha)
-		dL := RandomScalar(rand.Reader)
-		dR := RandomScalar(rand.Reader)
+		dL := RandomScalar(rnd)
+		dR := RandomScalar(rnd)
 		//log.Printf("dL = %x", dL.Bytes())
 		//log.Printf("dR = %x", dR.Bytes())
 
@@ -307,10 +307,10 @@ func (trait *Trait) BPPGen(values, masks []*edwards25519.Scalar, commitments_1di
 	//log.Printf("#<last>")
 	// zk-WIP last round
 
-	r := RandomScalar(rand.Reader)
-	s := RandomScalar(rand.Reader)
-	delta := RandomScalar(rand.Reader)
-	eta := RandomScalar(rand.Reader)
+	r := RandomScalar(rnd)
+	s := RandomScalar(rnd)
+	delta := RandomScalar(rnd)
+	eta := RandomScalar(rnd)
 	//log.Printf("r = %x", r.Bytes())
 	//log.Printf("s = %x", s.Bytes())
 	//log.Printf("delta = %x", delta.Bytes())

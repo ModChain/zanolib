@@ -1,14 +1,14 @@
 package zanocrypto
 
 import (
-	"crypto/rand"
 	"errors"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 )
 
-func GenerateVectorUgAggregationProof(contextHash []byte, uSecrets, gSecrets0, gSecrets1 []*edwards25519.Scalar, amountCommitments, amountCommitmentsForRpAggregation, blindedAssetIds []*edwards25519.Point) (*zanobase.UGAggProof, error) {
+func GenerateVectorUgAggregationProof(rnd io.Reader, contextHash []byte, uSecrets, gSecrets0, gSecrets1 []*edwards25519.Scalar, amountCommitments, amountCommitmentsForRpAggregation, blindedAssetIds []*edwards25519.Point) (*zanobase.UGAggProof, error) {
 	// bool generate_vector_UG_aggregation_proof(const hash& m, const scalar_vec_t& u_secrets, const scalar_vec_t& g_secrets0, const scalar_vec_t& g_secrets1,
 	// const std::vector<point_t>& amount_commitments,
 	// const std::vector<point_t>& amount_commitments_for_rp_aggregation,
@@ -61,8 +61,8 @@ func GenerateVectorUgAggregationProof(contextHash []byte, uSecrets, gSecrets0, g
 	res := new(zanobase.UGAggProof)
 	var r0, r1 []*edwards25519.Scalar
 	for i := 0; i < n; i++ {
-		r0 = append(r0, RandomScalar(rand.Reader))
-		r1 = append(r1, RandomScalar(rand.Reader))
+		r0 = append(r0, RandomScalar(rnd))
+		r1 = append(r1, RandomScalar(rnd))
 	}
 
 	assetTagPlusUvec := make([]*edwards25519.Point, n)
@@ -100,9 +100,9 @@ func GenerateVectorUgAggregationProof(contextHash []byte, uSecrets, gSecrets0, g
 	return res, nil
 }
 
-func GenerateDoubleSchnorrSig(gen0, gen1 *edwards25519.Point, m []byte, A *edwards25519.Point, secret_a *edwards25519.Scalar, B *edwards25519.Point, secret_b *edwards25519.Scalar) (*zanobase.GenericDoubleSchnorrSig, error) {
-	r0 := RandomScalar(rand.Reader)
-	r1 := RandomScalar(rand.Reader)
+func GenerateDoubleSchnorrSig(rnd io.Reader, gen0, gen1 *edwards25519.Point, m []byte, A *edwards25519.Point, secret_a *edwards25519.Scalar, B *edwards25519.Point, secret_b *edwards25519.Scalar) (*zanobase.GenericDoubleSchnorrSig, error) {
+	r0 := RandomScalar(rnd)
+	r1 := RandomScalar(rnd)
 	R0 := new(edwards25519.Point).ScalarMult(r0, gen0)
 	R1 := new(edwards25519.Point).ScalarMult(r1, gen1)
 	hsc := newClsagHash()

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 
 	"filippo.io/edwards25519"
@@ -17,7 +18,7 @@ var (
 	CRYPTO_HDS_OUT_AMOUNT_BLINDING_MASK = []byte("ZANO_HDS_OUT_AMOUNT_BLIND_MASK_\x00")
 )
 
-func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
+func (w *Wallet) Sign(rnd io.Reader, ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, error) {
 	if !bytes.Equal(ftp.SpendPubKey.Bytes(), w.SpendPubKey.Bytes()) {
 		return nil, errors.New("spend key does not match")
 	}
@@ -225,7 +226,7 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 			if err != nil {
 				return nil, err
 			}
-			src.generateZCSig(tx, n, sig, txHashForSig, ogc)
+			src.generateZCSig(rnd, tx, n, sig, txHashForSig, ogc)
 			tx.Signatures = append(tx.Signatures, &zanobase.Variant{Tag: zanobase.TagZCSig, Value: sig})
 		}
 	}
@@ -235,21 +236,21 @@ func (w *Wallet) Sign(ftp *FinalizeTxParam, oneTimeKey []byte) (*FinalizedTx, er
 
 	// asset surjection proof
 	//bool r = generate_asset_surjection_proof(tx_prefix_hash, has_non_zc_inputs, gen_context, asp);
-	err = zanoproof.GenerateAssetSurjectionProof(tx, txId, ogc)
+	err = zanoproof.GenerateAssetSurjectionProof(rnd, tx, txId, ogc)
 	if err != nil {
 		return nil, fmt.Errorf("while generating asset surjection proof: %w", err)
 	}
 
 	// range proofs
 	// r = generate_zc_outs_range_proof(tx_prefix_hash, gen_context, tx.vout, range_proofs)
-	err = zanoproof.GenerateZcOutsRangeProof(tx, txId, ogc)
+	err = zanoproof.GenerateZcOutsRangeProof(rnd, tx, txId, ogc)
 	if err != nil {
 		return nil, fmt.Errorf("while generating zc outs range proof: %w", err)
 	}
 
 	// balance proof
 	// r = generate_tx_balance_proof(tx, tx_prefix_hash, gen_context, 0, balance_proof)
-	err = zanoproof.GenerateTxBalanceProof(tx, txId, ogc, 0)
+	err = zanoproof.GenerateTxBalanceProof(rnd, tx, txId, ogc, 0)
 	if err != nil {
 		return nil, fmt.Errorf("while generating tx balance proof: %w", err)
 	}

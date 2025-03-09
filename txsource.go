@@ -1,7 +1,7 @@
 package zanolib
 
 import (
-	"crypto/rand"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
@@ -38,7 +38,7 @@ func (src *TxSource) IsZC() bool {
 	return src.RealOutAssetIdBlindingMask.Scalar.Equal(zanocrypto.ScZero) == 0
 }
 
-func (src *TxSource) generateZCSig(tx *zanobase.Transaction, inputIndex int, sig *zanobase.ZCSig, txHashForSig []byte, ogc *zanobase.GenContext) error {
+func (src *TxSource) generateZCSig(rnd io.Reader, tx *zanobase.Transaction, inputIndex int, sig *zanobase.ZCSig, txHashForSig []byte, ogc *zanobase.GenContext) error {
 	in := zanobase.VariantAs[*zanobase.TxInZcInput](tx.Vin[inputIndex])
 
 	//crypto::point_t asset_id_pt(se.asset_id);
@@ -62,7 +62,7 @@ func (src *TxSource) generateZCSig(tx *zanobase.Transaction, inputIndex int, sig
 	}
 	pseudoOutAmountBlindingMask = new(edwards25519.Scalar).Subtract(ogc.AmountBlindingMasksSum.Scalar, A)
 
-	pseudoOutAssetIdBlindingMask := zanocrypto.RandomScalar(rand.Reader)
+	pseudoOutAssetIdBlindingMask := zanocrypto.RandomScalar(rnd)
 
 	//crypto::point_t pseudo_out_blinded_asset_id = source_blinded_asset_id + pseudo_out_asset_id_blinding_mask * crypto::c_point_X;            // T^p_i = T_i + r'_i * X
 	pseudoOutBlindedAssetId := new(edwards25519.Point).Add(sourceBlindedAssetId, new(edwards25519.Point).ScalarMult(pseudoOutAssetIdBlindingMask, zanocrypto.C_point_X))
@@ -135,7 +135,7 @@ func (src *TxSource) generateZCSig(tx *zanobase.Transaction, inputIndex int, sig
 	secret0xp := src.ephemeral.Sec.Scalar
 	secret1f := new(edwards25519.Scalar).Subtract(src.RealOutAmountBlindingMask.Scalar, pseudoOutAmountBlindingMask)
 	secret2t := new(edwards25519.Scalar).Negate(pseudoOutAssetIdBlindingMask)
-	sigggx, err := zanocrypto.GenerateCLSAG_GGX(txHashForSig, ring, ki, pseudoOutAmountCommitment, pseudoOutBlindedAssetId, secret0xp, secret1f, secret2t, src.RealOutput)
+	sigggx, err := zanocrypto.GenerateCLSAG_GGX(rnd, txHashForSig, ring, ki, pseudoOutAmountCommitment, pseudoOutBlindedAssetId, secret0xp, secret1f, secret2t, src.RealOutput)
 
 	sig.GGX = sigggx
 

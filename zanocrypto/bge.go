@@ -1,57 +1,17 @@
 package zanocrypto
 
 import (
-	"crypto/rand"
 	"errors"
-	"math"
+	"io"
 	"sync"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 )
 
-// intPow is a integer version of pow()
-func intPow(base, exp int) int {
-	result := 1
-	for {
-		if exp&1 == 1 {
-			result *= base
-		}
-		exp >>= 1
-		if exp == 0 {
-			break
-		}
-		base *= base
-	}
-
-	return result
-}
-
-// ceilLogN returns the smallest integer m such that m^n >= ringSize.
-func ceilLogN(ringSize, n int) int {
-	if ringSize <= 1 {
-		return 1
-	}
-	if n == 1 {
-		return ringSize
-	}
-
-	floatGuess := math.Pow(float64(ringSize), 1.0/float64(n))
-	m := int(math.Ceil(floatGuess))
-
-	// Correct any floating-point rounding errors:
-	for intPow(m, n) < ringSize {
-		m++
-	}
-	for m > 1 && intPow(m-1, n) >= ringSize {
-		m--
-	}
-	return m
-}
-
 // src/crypto/one_out_of_many_proofs.cpp
 
-func Generate_BGE_Proof(contextHash []byte, ring []*edwards25519.Point, secret *edwards25519.Scalar, secretIndex int) (*zanobase.BGEProof, error) {
+func Generate_BGE_Proof(rnd io.Reader, contextHash []byte, ring []*edwards25519.Point, secret *edwards25519.Scalar, secretIndex int) (*zanobase.BGEProof, error) {
 	res := new(zanobase.BGEProof)
 	n := 4 // TODO: @#@# move it out
 
@@ -82,7 +42,7 @@ func Generate_BGE_Proof(contextHash []byte, ring []*edwards25519.Point, secret *
 	for j := 0; j < m; j += 1 {
 		aMat[idx(j, 0)] = new(edwards25519.Scalar)
 		for i := n - 1; i != 0; i -= 1 {
-			aMat[idx(j, i)] = RandomScalar(rand.Reader)
+			aMat[idx(j, i)] = RandomScalar(rnd)
 			aMat[idx(j, 0)] = aMat[idx(j, 0)].Subtract(aMat[idx(j, 0)], aMat[idx(j, i)])
 		}
 		digit := l % n // j-th digit of secret_index
@@ -124,11 +84,11 @@ func Generate_BGE_Proof(contextHash []byte, ring []*edwards25519.Point, secret *
 		}
 	}
 
-	r_A := RandomScalar(rand.Reader)
-	r_B := RandomScalar(rand.Reader)
+	r_A := RandomScalar(rnd)
+	r_B := RandomScalar(rnd)
 	ro := make([]*edwards25519.Scalar, m)
 	for n := range ro {
-		ro[n] = RandomScalar(rand.Reader)
+		ro[n] = RandomScalar(rnd)
 	}
 
 	A := C_point_0

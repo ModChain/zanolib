@@ -1,15 +1,15 @@
 package zanoproof
 
 import (
-	"crypto/rand"
 	"errors"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
-func GenerateZcOutsRangeProof(tx *zanobase.Transaction, contextHash []byte, ogc *zanobase.GenContext) error {
+func GenerateZcOutsRangeProof(rnd io.Reader, tx *zanobase.Transaction, contextHash []byte, ogc *zanobase.GenContext) error {
 	// bool generate_zc_outs_range_proof(const crypto::hash& context_hash, const tx_generation_context& outs_gen_context, const std::vector<tx_out_v>& vouts, zc_outs_range_proof& result)
 	res := new(zanobase.ZCOutsRangeProof)
 
@@ -24,7 +24,7 @@ func GenerateZcOutsRangeProof(tx *zanobase.Transaction, contextHash []byte, ogc 
 	var y_primes []*edwards25519.Scalar
 
 	for i := 0; i < outsCount; i += 1 {
-		y_prime := zanocrypto.RandomScalar(rand.Reader)
+		y_prime := zanocrypto.RandomScalar(rnd)
 		// E'_j = e_j * U + y'_j * G
 		// outs_gen_context.amounts[i] * crypto::c_point_U + y_prime * crypto::c_point_G
 		tmp := new(edwards25519.Point).VarTimeDoubleScalarBaseMult(ogc.Amounts[i].Scalar, zanocrypto.C_point_U, y_prime)
@@ -37,7 +37,7 @@ func GenerateZcOutsRangeProof(tx *zanobase.Transaction, contextHash []byte, ogc 
 	// outs_gen_context.amount_commitments, amount_commitments_for_rp_aggregation,
 	// outs_gen_context.blinded_asset_ids, result.aggregation_proof, &err);
 	var err error
-	res.AggregationProof, err = zanocrypto.GenerateVectorUgAggregationProof(contextHash, xScs(ogc.Amounts), xScs(ogc.AmountBlindingMasks), y_primes, xPts(ogc.AmountCommitments), amountCommitmentsForRpAggregation, xPts(ogc.BlindedAssetIds))
+	res.AggregationProof, err = zanocrypto.GenerateVectorUgAggregationProof(rnd, contextHash, xScs(ogc.Amounts), xScs(ogc.AmountBlindingMasks), y_primes, xPts(ogc.AmountCommitments), amountCommitmentsForRpAggregation, xPts(ogc.BlindedAssetIds))
 	if err != nil {
 		return err
 	}
@@ -46,7 +46,7 @@ func GenerateZcOutsRangeProof(tx *zanobase.Transaction, contextHash []byte, ogc 
 	// commitments_1div8[i] = &result.aggregation_proof.amount_commitments_for_rp_aggregation[i];
 	// this actually does nothing more than xPts
 
-	res.BPP, err = zanocrypto.TraitZCout.BPPGen(xScs(ogc.Amounts), y_primes, xPts(res.AggregationProof.AmountCommitmentsForRPAgg))
+	res.BPP, err = zanocrypto.TraitZCout.BPPGen(rnd, xScs(ogc.Amounts), y_primes, xPts(res.AggregationProof.AmountCommitmentsForRPAgg))
 	if err != nil {
 		return err
 	}

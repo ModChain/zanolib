@@ -2,8 +2,8 @@ package zanocrypto
 
 import (
 	"bytes"
-	"crypto/rand"
 	"errors"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
@@ -23,6 +23,7 @@ type CLSAG_GGXInputRef struct {
 }
 
 func GenerateCLSAG_GGX(
+	rnd io.Reader,
 	m []byte,
 	ring []CLSAG_GGXInputRef,
 	ki *edwards25519.Point,
@@ -193,8 +194,8 @@ func GenerateCLSAG_GGX(
 	//log.Printf("W_key_image_x: %x", WkeyImageX.Bytes())
 
 	// Initial commitment: alpha_g, alpha_x are random scalars
-	alphaG := RandomScalar(rand.Reader)
-	alphaX := RandomScalar(rand.Reader)
+	alphaG := RandomScalar(rnd)
+	alphaX := RandomScalar(rnd)
 
 	// c_prev = Hs(input_hash, alpha_g*G, alpha_g*ki_base, alpha_x*X, alpha_x*ki_base)
 	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
@@ -212,8 +213,8 @@ func GenerateCLSAG_GGX(
 	sig.Rg = make([]*zanobase.Scalar, ringSize)
 	sig.Rx = make([]*zanobase.Scalar, ringSize)
 	for i := 0; i < ringSize; i++ {
-		sig.Rg[i] = &zanobase.Scalar{RandomScalar(rand.Reader)}
-		sig.Rx[i] = &zanobase.Scalar{RandomScalar(rand.Reader)}
+		sig.Rg[i] = &zanobase.Scalar{RandomScalar(rnd)}
+		sig.Rx[i] = &zanobase.Scalar{RandomScalar(rnd)}
 	}
 
 	// The main ring loop

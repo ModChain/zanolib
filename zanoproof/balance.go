@@ -3,13 +3,14 @@ package zanoproof
 import (
 	"bytes"
 	"errors"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
-func GenerateTxBalanceProof(tx *zanobase.Transaction, contextHash []byte, ogc *zanobase.GenContext, block_reward_for_miner_tx uint64) error {
+func GenerateTxBalanceProof(rnd io.Reader, tx *zanobase.Transaction, contextHash []byte, ogc *zanobase.GenContext, block_reward_for_miner_tx uint64) error {
 	// generate_tx_balance_proof(const transaction &tx, const crypto::hash& tx_id, const tx_generation_context& ogc,
 	res := new(zanobase.ZCBalanceProof)
 
@@ -38,7 +39,7 @@ func GenerateTxBalanceProof(tx *zanobase.Transaction, contextHash []byte, ogc *z
 		// Check: commitment_to_zero == secret_x * crypto::c_point_G, false, "internal error: commitment_to_zero is malformed (G)"
 		//crypto::generate_double_schnorr_sig<crypto::gt_G, crypto::gt_G>(tx_id, commitment_to_zero, secret_x, ogc.tx_pub_key_p, ogc.tx_key.sec, proof.dss);
 		var err error
-		res.DSS, err = zanocrypto.GenerateDoubleSchnorrSig(zanocrypto.C_point_G, zanocrypto.C_point_G, contextHash, commitment_to_zero, secret_x, ogc.TxPubKeyP.Point, ogc.TxKey.Sec.Scalar)
+		res.DSS, err = zanocrypto.GenerateDoubleSchnorrSig(rnd, zanocrypto.C_point_G, zanocrypto.C_point_G, contextHash, commitment_to_zero, secret_x, ogc.TxPubKeyP.Point, ogc.TxKey.Sec.Scalar)
 		if err != nil {
 			return err
 		}
@@ -66,7 +67,7 @@ func GenerateTxBalanceProof(tx *zanobase.Transaction, contextHash []byte, ogc *z
 		}
 		// crypto::generate_double_schnorr_sig<crypto::gt_X, crypto::gt_G>(tx_id, commitment_to_zero, secret_x, ogc.tx_pub_key_p, ogc.tx_key.sec,
 		var err error
-		res.DSS, err = zanocrypto.GenerateDoubleSchnorrSig(zanocrypto.C_point_X, zanocrypto.C_point_G, contextHash, commitment_to_zero, secret_x, ogc.TxPubKeyP.Point, ogc.TxKey.Sec.Scalar)
+		res.DSS, err = zanocrypto.GenerateDoubleSchnorrSig(rnd, zanocrypto.C_point_X, zanocrypto.C_point_G, contextHash, commitment_to_zero, secret_x, ogc.TxPubKeyP.Point, ogc.TxKey.Sec.Scalar)
 		if err != nil {
 			return err
 		}

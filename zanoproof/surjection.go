@@ -3,13 +3,14 @@ package zanoproof
 import (
 	"errors"
 	"fmt"
+	"io"
 
 	"filippo.io/edwards25519"
 	"github.com/ModChain/zanolib/zanobase"
 	"github.com/ModChain/zanolib/zanocrypto"
 )
 
-func GenerateAssetSurjectionProof(tx *zanobase.Transaction, contextHash []byte, ogc *zanobase.GenContext) error {
+func GenerateAssetSurjectionProof(rnd io.Reader, tx *zanobase.Transaction, contextHash []byte, ogc *zanobase.GenContext) error {
 	outsCount := len(ogc.BlindedAssetIds)
 	if outsCount == 0 {
 		return errors.New("blinded_asset_ids shouldn't be empty")
@@ -53,7 +54,7 @@ func GenerateAssetSurjectionProof(tx *zanobase.Transaction, contextHash []byte, 
 			return fmt.Errorf("out #%d: cannot find a corresponding asset id in inputs or asset operations; asset id: %x", j, H.Bytes())
 		}
 
-		bge, err := zanocrypto.Generate_BGE_Proof(contextHash, ring, secret, secretIndex)
+		bge, err := zanocrypto.Generate_BGE_Proof(rnd, contextHash, ring, secret, secretIndex)
 		if err != nil {
 			return err
 		}
