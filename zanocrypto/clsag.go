@@ -86,46 +86,46 @@ func GenerateCLSAG_GGX(
 	hsc := NewHashHelper()
 
 	// since this was hsc.add_scalar(m), the value of m is converted to a scalar and has "mod l" applied to it
-	hsc.addBytesModL(m)
+	hsc.AddBytesModL(m)
 
 	// for each ring item, add stealth_address, amount_commitment, blinded_asset_id
 	for i := 0; i < ringSize; i++ {
-		hsc.addPointBytes(ring[i].StealthAddress)
-		hsc.addPointBytes(ring[i].AmountCommitment)
-		hsc.addPointBytes(ring[i].BlindedAssetID)
+		hsc.Add(ring[i].StealthAddress)
+		hsc.Add(ring[i].AmountCommitment)
+		hsc.Add(ring[i].BlindedAssetID)
 		//log.Printf("ring[%d]: sa:%x ac:%x baid:%x", i, ring[i].StealthAddress.Bytes(), ring[i].AmountCommitment.Bytes(), ring[i].BlindedAssetID.Bytes())
 	}
 	// also add c_scalar_1div8 * pseudoOutAmountCommitment
 	tmpPoint := new(edwards25519.Point).ScalarMult(Sc1div8, pseudoOutAmountCommitment)
-	hsc.addPointBytes(tmpPoint)
+	hsc.Add(tmpPoint)
 
 	tmpPoint = new(edwards25519.Point).ScalarMult(Sc1div8, pseudoOutBlindedAssetID)
-	hsc.addPointBytes(tmpPoint)
+	hsc.Add(tmpPoint)
 
 	// add key_image
-	hsc.addPointBytes(ki)
+	hsc.Add(ki)
 	// add K1, K2 (already stored in sig.*)
-	hsc.addPointBytes(sig.K1.Point)
-	hsc.addPointBytes(sig.K2.Point)
+	hsc.Add(sig.K1.Point)
+	hsc.Add(sig.K2.Point)
 
 	// input_hash = hsc.calc_hash_no_reduce() in your code
-	// We'll assume a single calcHash() usage
-	inputHash := hsc.calcRawHash()
+	// We'll assume a single CalcHash() usage
+	inputHash := hsc.CalcRawHash()
 
 	//   hsc.add_32_chars(CRYPTO_HDS_CLSAG_GGX_LAYER_0)
 	//   hsc.add_hash(input_hash)
 	//   agg_coeff_0 = hsc.calc_hash()
-	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_0)
-	hsc.addBytes(inputHash)
-	aggCoeff0 := hsc.calcHash()
+	hsc.AddBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_0)
+	hsc.AddBytes(inputHash)
+	aggCoeff0 := hsc.CalcHash()
 
-	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_1)
-	hsc.addBytes(inputHash)
-	aggCoeff1 := hsc.calcHash()
+	hsc.AddBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_1)
+	hsc.AddBytes(inputHash)
+	aggCoeff1 := hsc.CalcHash()
 
-	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_2)
-	hsc.addBytes(inputHash)
-	aggCoeff2 := hsc.calcHash()
+	hsc.AddBytes(CRYPTO_HDS_CLSAG_GGX_LAYER_2)
+	hsc.AddBytes(inputHash)
+	aggCoeff2 := hsc.CalcHash()
 
 	// Prepare A_i, Q_i by copying ring[i].amount_commitment and .blinded_asset_id,
 	// then multiply each by 8
@@ -198,15 +198,15 @@ func GenerateCLSAG_GGX(
 	alphaX := RandomScalar(rnd)
 
 	// c_prev = Hs(input_hash, alpha_g*G, alpha_g*ki_base, alpha_x*X, alpha_x*ki_base)
-	hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
-	hsc.addBytes(inputHash)
+	hsc.AddBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
+	hsc.AddBytes(inputHash)
 
-	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaG, C_point_G))
-	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaG, kiBase))
-	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaX, C_point_X))
-	hsc.addPointBytes(new(edwards25519.Point).ScalarMult(alphaX, kiBase))
+	hsc.Add(new(edwards25519.Point).ScalarMult(alphaG, C_point_G))
+	hsc.Add(new(edwards25519.Point).ScalarMult(alphaG, kiBase))
+	hsc.Add(new(edwards25519.Point).ScalarMult(alphaX, C_point_X))
+	hsc.Add(new(edwards25519.Point).ScalarMult(alphaX, kiBase))
 	//log.Printf("c[%d] = Hs(ih, %x, )", secretIndex, new(edwards25519.Point).ScalarMult(alphaG, C_point_G), )
-	cPrev := hsc.calcHash()
+	cPrev := hsc.CalcHash()
 	//log.Printf("cPrev = %x", cPrev.Bytes())
 
 	// Initialize sig.Rg and sig.Rx with random scalars
@@ -231,13 +231,13 @@ func GenerateCLSAG_GGX(
 		//                        r_x[i]*X + c_prev*W_pub_keys_x[i],
 		//                        r_x[i]*hp(ring[i].stealth_address) + c_prev*W_key_image_x )
 		hsc = NewHashHelper()
-		hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
-		hsc.addBytes(inputHash)
+		hsc.AddBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
+		hsc.AddBytes(inputHash)
 
 		// 1) r_g[i]*G + c_prev*W_pub_keys_g[i]
 		rgG := new(edwards25519.Point).ScalarMult(sig.Rg[i].Scalar, C_point_G)
 		cwpg := new(edwards25519.Point).ScalarMult(cPrev, WpubG[i])
-		hsc.addPointBytes(new(edwards25519.Point).Add(rgG, cwpg))
+		hsc.Add(new(edwards25519.Point).Add(rgG, cwpg))
 
 		// 2) r_g[i]*hp(stealth) + c_prev*W_key_image_g
 		stealthBytes2 := ring[i].StealthAddress.Bytes()
@@ -245,19 +245,19 @@ func GenerateCLSAG_GGX(
 
 		rgHp := new(edwards25519.Point).ScalarMult(sig.Rg[i].Scalar, hpI)
 		cwikg := new(edwards25519.Point).ScalarMult(cPrev, WkeyImageG)
-		hsc.addPointBytes(new(edwards25519.Point).Add(rgHp, cwikg))
+		hsc.Add(new(edwards25519.Point).Add(rgHp, cwikg))
 
 		// 3) r_x[i]*X + c_prev*W_pub_keys_x[i]
 		rxX := new(edwards25519.Point).ScalarMult(sig.Rx[i].Scalar, C_point_X)
 		cwpx := new(edwards25519.Point).ScalarMult(cPrev, WpubX[i])
-		hsc.addPointBytes(new(edwards25519.Point).Add(rxX, cwpx))
+		hsc.Add(new(edwards25519.Point).Add(rxX, cwpx))
 
 		// 4) r_x[i]*hp(stealth) + c_prev*W_key_image_x
 		rxHp := new(edwards25519.Point).ScalarMult(sig.Rx[i].Scalar, hpI)
 		cwikx := new(edwards25519.Point).ScalarMult(cPrev, WkeyImageX)
-		hsc.addPointBytes(new(edwards25519.Point).Add(rxHp, cwikx))
+		hsc.Add(new(edwards25519.Point).Add(rxHp, cwikx))
 
-		cPrev = hsc.calcHash()
+		cPrev = hsc.CalcHash()
 
 		i = (i + 1) % ringSize
 	}

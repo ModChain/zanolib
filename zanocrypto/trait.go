@@ -69,9 +69,9 @@ func TraitInitialTranscript() *edwards25519.Scalar {
 }
 
 func TraitUpdateTranscript(hsc *HashHelper, e *edwards25519.Scalar, pubKeys []*edwards25519.Point) *edwards25519.Scalar {
-	hsc.add(e)
-	hsc.add(bter(pubKeys)...)
-	return hsc.calcHash()
+	hsc.Add(e)
+	hsc.Add(bter(pubKeys)...)
+	return hsc.CalcHash()
 }
 
 func TraitGetGenerator(select_H bool, index int) *edwards25519.Point {

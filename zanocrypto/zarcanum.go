@@ -48,11 +48,11 @@ func GenerateVectorUgAggregationProof(rnd io.Reader, contextHash []byte, uSecret
 	}
 
 	hash_calculator := NewHashHelper()
-	hash_calculator.addBytes(contextHash)
+	hash_calculator.AddBytes(contextHash)
 	// hash_calculator.add_points_array(amount_commitments);
-	hash_calculator.add(bter(amountCommitments)...)
-	hash_calculator.add(bter(amountCommitmentsForRpAggregation)...)
-	w := hash_calculator.calcHashKeep() // don't clean the buffer
+	hash_calculator.Add(bter(amountCommitments)...)
+	hash_calculator.Add(bter(amountCommitmentsForRpAggregation)...)
+	w := hash_calculator.CalcHashKeep() // don't clean the buffer
 	//log.Printf("w = %x", w.Bytes())
 
 	// for(size_t j = 0; j < n; ++j)
@@ -76,9 +76,9 @@ func GenerateVectorUgAggregationProof(rnd io.Reader, contextHash []byte, uSecret
 		R[j] = new(edwards25519.Point).VarTimeDoubleScalarBaseMult(r0[j], assetTagPlusUvec[j], r1[j])
 	}
 
-	hash_calculator.add(bter(R)...)
+	hash_calculator.Add(bter(R)...)
 
-	rC := hash_calculator.calcHash()
+	rC := hash_calculator.CalcHash()
 	res.C = &zanobase.Scalar{rC}
 
 	// DBG_VAL_PRINT(asset_tag_plus_U_vec); DBG_VAL_PRINT(m); DBG_VAL_PRINT(amount_commitments); DBG_VAL_PRINT(amount_commitments_for_rp_aggregation); DBG_VAL_PRINT(R);
@@ -106,9 +106,9 @@ func GenerateDoubleSchnorrSig(rnd io.Reader, gen0, gen1 *edwards25519.Point, m [
 	R0 := new(edwards25519.Point).ScalarMult(r0, gen0)
 	R1 := new(edwards25519.Point).ScalarMult(r1, gen1)
 	hsc := NewHashHelper()
-	hsc.addBytes(m)
-	hsc.add(A, B, R0, R1)
-	C := hsc.calcHash()
+	hsc.AddBytes(m)
+	hsc.Add(A, B, R0, R1)
+	C := hsc.CalcHash()
 	// y0 = r0 - c * secret_a
 	Y0 := new(edwards25519.Scalar).Subtract(r0, new(edwards25519.Scalar).Multiply(C, secret_a))
 	// y1 = r1 - c * secret_b

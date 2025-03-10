@@ -83,9 +83,9 @@ func (trait *Trait) BPPGen(rnd io.Reader, values, masks []*edwards25519.Scalar, 
 	//log.Printf("A0 = %x", A0.Bytes())
 
 	// calculate scalar challenges y and z
-	hsc.add(e)
-	hsc.add(A0)
-	y := hsc.calcHash()
+	hsc.Add(e)
+	hsc.Add(A0)
+	y := hsc.CalcHash()
 	z := HashToScalar(y.Bytes())
 	e = z // transcript for further steps
 	//log.Printf("y = %x", y.Bytes())
@@ -248,9 +248,9 @@ func (trait *Trait) BPPGen(rnd io.Reader, values, masks []*edwards25519.Scalar, 
 		res.Rv = append(res.Rv, &zanobase.Point{R})
 
 		// update the transcript
-		hsc.add(e)
-		hsc.add(L, R)
-		e = hsc.calcHash()
+		hsc.Add(e)
+		hsc.Add(L, R)
+		e = hsc.CalcHash()
 		//log.Printf("e = %x", e.Bytes())
 
 		// recalculate arguments for the next round
@@ -336,8 +336,8 @@ func (trait *Trait) BPPGen(rnd io.Reader, values, masks []*edwards25519.Scalar, 
 	res.B = &zanobase.Point{B}
 
 	// update the transcript
-	hsc.add(e, A, B)
-	e = hsc.calcHash()
+	hsc.Add(e, A, B)
+	e = hsc.CalcHash()
 
 	// finalize the signature
 	// sig.r = r + e * a[0]

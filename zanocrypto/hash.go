@@ -19,38 +19,30 @@ func NewHashHelper() *HashHelper {
 	return &HashHelper{h: sha3.NewLegacyKeccak256()}
 }
 
-func (c *HashHelper) addBytes(b []byte) {
+func (c *HashHelper) AddBytes(b []byte) {
 	if len(b) != 32 {
 		panic("addbytes expect 32 bytes")
 	}
 	c.h.Write(b)
 }
 
-func (c *HashHelper) addBytesModL(b []byte) {
+func (c *HashHelper) AddBytesModL(b []byte) {
 	if len(b) != 32 {
 		panic("addbytes expect 32 bytes")
 	}
 	var wide [64]byte
 	copy(wide[:], b)
 	sc, _ := new(edwards25519.Scalar).SetUniformBytes(wide[:])
-	c.addScalarBytes(sc)
+	c.Add(sc)
 }
 
-func (c *HashHelper) addPointBytes(p *edwards25519.Point) {
-	c.h.Write(p.Bytes())
-}
-
-func (c *HashHelper) addScalarBytes(s *edwards25519.Scalar) {
-	c.h.Write(s.Bytes())
-}
-
-func (c *HashHelper) add(v ...byter) {
+func (c *HashHelper) Add(v ...byter) {
 	for _, s := range v {
 		c.h.Write(s.Bytes())
 	}
 }
 
-func (c *HashHelper) calcHash() *edwards25519.Scalar {
+func (c *HashHelper) CalcHash() *edwards25519.Scalar {
 	res := c.h.Sum(nil)
 	c.h.Reset()
 	var buf64 [64]byte
@@ -59,8 +51,8 @@ func (c *HashHelper) calcHash() *edwards25519.Scalar {
 	return pt
 }
 
-// calcHashKeep is the same as calcHash but does not reset the state
-func (c *HashHelper) calcHashKeep() *edwards25519.Scalar {
+// CalcHashKeep is the same as calcHash but does not reset the state
+func (c *HashHelper) CalcHashKeep() *edwards25519.Scalar {
 	res := c.h.Sum(nil)
 	var buf64 [64]byte
 	copy(buf64[:], res)
@@ -68,7 +60,7 @@ func (c *HashHelper) calcHashKeep() *edwards25519.Scalar {
 	return pt
 }
 
-func (c *HashHelper) calcRawHash() []byte {
+func (c *HashHelper) CalcRawHash() []byte {
 	res := c.h.Sum(nil)
 	c.h.Reset()
 	return res
