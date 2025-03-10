@@ -93,8 +93,11 @@ func (w *Wallet) Encrypt(data any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	key := w.ViewPrivKey.Bytes()
-	buf, err := zanocrypto.ChaCha8(key, make([]byte, 8), out.Bytes())
+	code, err := zanocrypto.ChaCha8GenerateKey(w.ViewPrivKey.Bytes())
+	if err != nil {
+		return nil, err
+	}
+	buf, err := zanocrypto.ChaCha8(code, make([]byte, 8), out.Bytes())
 	if err != nil {
 		return nil, err
 	}
