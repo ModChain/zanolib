@@ -24,6 +24,7 @@ func (w *Wallet) Sign(rnd io.Reader, ftp *FinalizeTxParam, oneTimeKey *edwards25
 	}
 
 	if ftp.TxVersion != 2 {
+		// TODO add support for TransactionV3 with HardforkId
 		return nil, fmt.Errorf("unsupported tx version = %d", ftp.TxVersion)
 	}
 	tx := &zanobase.Transaction{Version: 2}

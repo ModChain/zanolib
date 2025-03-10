@@ -10,7 +10,7 @@ The goal is to implement more secure processes to store the secret, if possible.
 
 # Offline signatures
 
-Compatible Zano version: __2.0.1.367__
+Compatible Zano version: __2.1.0.382__
 
 This library is able to load unsigned transactions. There are however a few caveats there:
 

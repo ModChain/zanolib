@@ -24,8 +24,8 @@ type FinalizeTxParam struct {
 	ExpirationTime       uint64
 	SpendPubKey          *zanobase.Point // only for validations
 	TxVersion            uint64
-	//TxHardforkId         uint64 // size_t; IN NEW VERSION FIXME
-	ModeSeparateFee uint64
+	TxHardforkId         uint64
+	ModeSeparateFee      uint64
 	//GenContext      *GenContext // if flags & TX_FLAG_SIGNATURE_MODE_SEPARATE
 }
 
