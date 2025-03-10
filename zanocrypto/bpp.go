@@ -52,7 +52,7 @@ func (trait *Trait) BPPGen(rnd io.Reader, values, masks []*edwards25519.Scalar, 
 	}
 
 	// using e as Fiat-Shamir transcript
-	hsc := newClsagHash()
+	hsc := NewHashHelper()
 	e := TraitInitialTranscript()
 	//log.Printf("initial transcript: %x", e.Bytes())
 

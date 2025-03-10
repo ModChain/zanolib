@@ -68,7 +68,7 @@ func TraitInitialTranscript() *edwards25519.Scalar {
 	return HashToScalar([]byte("Zano BP+ initial transcript"))
 }
 
-func TraitUpdateTranscript(hsc *clsagHash, e *edwards25519.Scalar, pubKeys []*edwards25519.Point) *edwards25519.Scalar {
+func TraitUpdateTranscript(hsc *HashHelper, e *edwards25519.Scalar, pubKeys []*edwards25519.Point) *edwards25519.Scalar {
 	hsc.add(e)
 	hsc.add(bter(pubKeys)...)
 	return hsc.calcHash()

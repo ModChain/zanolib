@@ -47,7 +47,7 @@ func GenerateVectorUgAggregationProof(rnd io.Reader, contextHash []byte, uSecret
 		return nil, errors.New("GenerateVectorUgAggregationProof: invalid length for blindedAssetIds")
 	}
 
-	hash_calculator := newClsagHash()
+	hash_calculator := NewHashHelper()
 	hash_calculator.addBytes(contextHash)
 	// hash_calculator.add_points_array(amount_commitments);
 	hash_calculator.add(bter(amountCommitments)...)
@@ -105,7 +105,7 @@ func GenerateDoubleSchnorrSig(rnd io.Reader, gen0, gen1 *edwards25519.Point, m [
 	r1 := RandomScalar(rnd)
 	R0 := new(edwards25519.Point).ScalarMult(r0, gen0)
 	R1 := new(edwards25519.Point).ScalarMult(r1, gen1)
-	hsc := newClsagHash()
+	hsc := NewHashHelper()
 	hsc.addBytes(m)
 	hsc.add(A, B, R0, R1)
 	C := hsc.calcHash()

@@ -140,7 +140,7 @@ func Generate_BGE_Proof(rnd io.Reader, contextHash []byte, ring []*edwards25519.
 	B = new(edwards25519.Point).Add(B, new(edwards25519.Point).ScalarMult(r_B, C_point_X))
 	res.B = &zanobase.Point{new(edwards25519.Point).ScalarMult(Sc1div8, B)}
 
-	hsc := newClsagHash()
+	hsc := NewHashHelper()
 	hsc.addBytes(contextHash)
 	for _, el := range ring {
 		hsc.addPointBytes(new(edwards25519.Point).ScalarMult(Sc1div8, el))

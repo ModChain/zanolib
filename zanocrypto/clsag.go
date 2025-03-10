@@ -83,7 +83,7 @@ func GenerateCLSAG_GGX(
 	K2 := new(edwards25519.Point).ScalarMult(ScalarInt(8), K2_div8)
 
 	// hash_helper_t::hs_t hsc(4 + 3  * ring_size);
-	hsc := newClsagHash()
+	hsc := NewHashHelper()
 
 	// since this was hsc.add_scalar(m), the value of m is converted to a scalar and has "mod l" applied to it
 	hsc.addBytesModL(m)
@@ -230,7 +230,7 @@ func GenerateCLSAG_GGX(
 		//                        r_g[i]*hp(ring[i].stealth_address) + c_prev*W_key_image_g,
 		//                        r_x[i]*X + c_prev*W_pub_keys_x[i],
 		//                        r_x[i]*hp(ring[i].stealth_address) + c_prev*W_key_image_x )
-		hsc = newClsagHash()
+		hsc = NewHashHelper()
 		hsc.addBytes(CRYPTO_HDS_CLSAG_GGX_CHALLENGE)
 		hsc.addBytes(inputHash)
 
